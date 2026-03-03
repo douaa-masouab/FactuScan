@@ -1129,9 +1129,11 @@
                     body: formData
                 });
 
-                if (!response.ok) throw new Error("Erreur serveur lors de l'analyse.");
+                const res = await response.json().catch(() => ({}));
+                if (!response.ok) {
+                    throw new Error(res.error || "Erreur serveur lors de l'analyse.");
+                }
 
-                const res = await response.json();
                 const data = res.extracted_data;
                 data.raw = text; // Keep the local text if needed or use res if backend returns it
                 data.validations = res.validations;

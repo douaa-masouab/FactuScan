@@ -111,7 +111,7 @@ reader = easyocr.Reader(['fr'], gpu=False)
 
 # Helper functions
 def allowed_file(filename):
-    ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
+    ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'jfif', 'jpe'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def extract_text_from_image(image_path):
@@ -314,6 +314,8 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_file():
     try:
+        # Debug logging
+        print(f"[UPLOAD] Request files: {request.files}")
         if 'file' not in request.files:
             return jsonify({"error": "No file part"}), 400
         
