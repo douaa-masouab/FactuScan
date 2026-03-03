@@ -147,6 +147,12 @@ def extract_with_gemini_multimodal(filepath, mime_type):
 def extract_text_from_image(image_path):
     """Extract text from image using EasyOCR (fallback)"""
     try:
+        # Compatibility fix for newer Pillow versions
+        if not hasattr(Image, 'ANTIALIAS'):
+            import PIL.Image
+            if not hasattr(PIL.Image, 'ANTIALIAS'):
+                setattr(PIL.Image, 'ANTIALIAS', getattr(PIL.Image, 'LANCZOS', getattr(PIL.Image, 'BICUBIC', 1)))
+        
         result = reader.readtext(image_path)
         text = ' '.join([item[1] for item in result])
         return text
