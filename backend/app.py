@@ -85,8 +85,17 @@ class Invoice(Base):
 if DB_AVAILABLE:
     try:
         Base.metadata.create_all(engine)
+        # Manual migration for existing databases: add ht_amount if missing
+        with engine.connect() as conn:
+            from sqlalchemy import inspect, text
+            inspector = inspect(engine)
+            columns = [c['name'] for c in inspector.get_columns('invoices')]
+            if 'ht_amount' not in columns:
+                print("[INFO] Adding missing column 'ht_amount' to invoices table...")
+                conn.execute(text("ALTER TABLE invoices ADD COLUMN ht_amount FLOAT"))
+                conn.commit()
     except Exception as e:
-        print(f"[WARNING] Could not create tables: {e}")
+        print(f"[WARNING] Database initialization/migration error: {e}")
 
 # Initialize OCR reader
 reader = easyocr.Reader(['fr'], gpu=False)
@@ -330,23 +339,29 @@ def upload_file():
         validations = validate_data(invoice_data)
         
         # Save to database
-        new_invoice = Invoice(
-            filename=filename,
-            invoice_number=invoice_data['invoice_number'],
-            invoice_date=invoice_data['invoice_date'],
-            supplier=invoice_data['supplier'],
-            ice=invoice_data['ice'],
-            ht_amount=invoice_data.get('ht_amount'),
-            vat_amount=invoice_data['vat_amount'],
-            total_amount=invoice_data['total_amount'],
-            extracted_text=extracted_text
-        )
-        session.add(new_invoice)
-        session.commit()
+        try:
+            new_invoice = Invoice(
+                filename=filename,
+                invoice_number=invoice_data.get('invoice_number', '_'),
+                invoice_date=invoice_data.get('invoice_date'),
+                supplier=invoice_data.get('supplier'),
+                ice=invoice_data.get('ice'),
+                ht_amount=invoice_data.get('ht_amount'),
+                vat_amount=invoice_data.get('vat_amount'),
+                total_amount=invoice_data.get('total_amount'),
+                extracted_text=extracted_text
+            )
+            session.add(new_invoice)
+            session.commit()
+            invoice_id = new_invoice.id
+        except Exception as e:
+            print(f"[DATABASE ERROR] Could not save invoice: {e}")
+            session.rollback()
+            invoice_id = None
         
         # Return extracted data with validations
         return jsonify({
-            "id": new_invoice.id,
+            "id": invoice_id,
             "filename": filename,
             "extracted_data": invoice_data,
             "validations": validations,
