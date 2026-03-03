@@ -359,6 +359,12 @@ def upload_file():
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
             
+            # Detect file type
+            try:
+                file_type = magic.from_file(filepath, mime=True)
+            except:
+                file_type = "image/jpeg"
+                
             # Try Gemini Multimodal First (Best & Lightest)
             gemini_data = extract_with_gemini_multimodal(filepath, file_type)
             
