@@ -59,10 +59,19 @@ try:
     session = Session()
     DB_AVAILABLE = True
 except Exception as e:
-    print(f"[WARNING] Database unavailable: {e}")
-    engine = None
-    session = None
-    DB_AVAILABLE = False
+    print(f"[WARNING] MySQL unavailable ({e}). Falling back to SQLite...")
+    try:
+        # Fallback to local SQLite if MySQL fails
+        DATABASE_URI = "sqlite:///factuscan.db"
+        engine = create_engine(DATABASE_URI)
+        Session = sessionmaker(bind=engine)
+        session = Session()
+        DB_AVAILABLE = True
+    except Exception as e2:
+        print(f"[ERROR] SQLite fallback failed: {e2}")
+        engine = None
+        session = None
+        DB_AVAILABLE = False
 
 # Database Models
 class Invoice(Base):
@@ -230,8 +239,11 @@ def extract_invoice_data(text):
             break
             
     # Estimate HT if missing but TVA and Total exist
-    if data['total_amount'] and data['vat_amount'] and not data['ht_amount']:
-        data['ht_amount'] = data['total_amount'] - data['vat_amount']
+    try:
+        if data.get('total_amount') and data.get('vat_amount') and not data.get('ht_amount'):
+            data['ht_amount'] = data['total_amount'] - data['vat_amount']
+    except:
+        pass
     
     return data
 
@@ -297,78 +309,89 @@ def validate_data(data):
 # Routes
 @app.route('/')
 def index():
-    """Serve the main HTML frontend"""
     return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-    
-    if file and allowed_file(file.filename):
-        # Generate unique filename
-        filename = str(uuid.uuid4()) + '_' + secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file part"}), 400
         
-        # Extract text based on file type
-        file_type = magic.from_file(filepath, mime=True)
-        extracted_text = ""
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
         
-        if 'pdf' in file_type:
-            extracted_text = extract_text_from_pdf(filepath)
-        else:  # Image file
-            extracted_text = extract_text_from_image(filepath)
-        
-        # Extract invoice data (Basic OCR/Regex)
-        invoice_data = extract_invoice_data(extracted_text)
-        
-        # Refine with Gemini if possible
-        gemini_data = extract_with_gemini(extracted_text)
-        if gemini_data:
-            # Merge: Use Gemini values if they exist, otherwise keep basic OCR/Regex
-            for key in invoice_data:
-                if gemini_data.get(key) is not None:
-                    invoice_data[key] = gemini_data[key]
-        
-        # Validate the results
-        validations = validate_data(invoice_data)
-        
-        # Save to database
-        try:
-            new_invoice = Invoice(
-                filename=filename,
-                invoice_number=invoice_data.get('invoice_number', '_'),
-                invoice_date=invoice_data.get('invoice_date'),
-                supplier=invoice_data.get('supplier'),
-                ice=invoice_data.get('ice'),
-                ht_amount=invoice_data.get('ht_amount'),
-                vat_amount=invoice_data.get('vat_amount'),
-                total_amount=invoice_data.get('total_amount'),
-                extracted_text=extracted_text
-            )
-            session.add(new_invoice)
-            session.commit()
-            invoice_id = new_invoice.id
-        except Exception as e:
-            print(f"[DATABASE ERROR] Could not save invoice: {e}")
-            session.rollback()
+        if file and allowed_file(file.filename):
+            # Generate unique filename
+            filename = str(uuid.uuid4()) + '_' + secure_filename(file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            
+            # Extract text based on file type
+            try:
+                file_type = magic.from_file(filepath, mime=True)
+            except:
+                file_type = "image/jpeg"
+                
+            extracted_text = ""
+            if 'pdf' in file_type:
+                extracted_text = extract_text_from_pdf(filepath)
+            else:  # Image file
+                extracted_text = extract_text_from_image(filepath)
+            
+            if not extracted_text:
+                return jsonify({"error": "Impossible d'extraire du texte de ce fichier."}), 422
+
+            # Extract invoice data (Basic OCR/Regex)
+            invoice_data = extract_invoice_data(extracted_text)
+            
+            # Refine with Gemini if possible
+            try:
+                gemini_data = extract_with_gemini(extracted_text)
+                if gemini_data:
+                    for key in invoice_data:
+                        if gemini_data.get(key) is not None:
+                            invoice_data[key] = gemini_data[key]
+            except Exception as ge:
+                print(f"[Gemini Error] {ge}")
+
+            # Validate the results
+            validations = validate_data(invoice_data)
+            
+            # Save to database
             invoice_id = None
+            if DB_AVAILABLE:
+                try:
+                    new_invoice = Invoice(
+                        filename=filename,
+                        invoice_number=invoice_data.get('invoice_number', '_'),
+                        invoice_date=invoice_data.get('invoice_date'),
+                        supplier=invoice_data.get('supplier'),
+                        ice=invoice_data.get('ice'),
+                        ht_amount=invoice_data.get('ht_amount'),
+                        vat_amount=invoice_data.get('vat_amount'),
+                        total_amount=invoice_data.get('total_amount'),
+                        extracted_text=extracted_text
+                    )
+                    session.add(new_invoice)
+                    session.commit()
+                    invoice_id = new_invoice.id
+                except Exception as db_e:
+                    print(f"[DATABASE ERROR] {db_e}")
+                    session.rollback()
+            
+            return jsonify({
+                "id": invoice_id,
+                "filename": filename,
+                "extracted_data": invoice_data,
+                "validations": validations,
+                "message": "Fichier traité avec succès"
+            })
         
-        # Return extracted data with validations
-        return jsonify({
-            "id": invoice_id,
-            "filename": filename,
-            "extracted_data": invoice_data,
-            "validations": validations,
-            "message": "Fichier traité avec succès"
-        })
-    
-    return jsonify({"error": "File type not allowed"}), 400
+        return jsonify({"error": "Type de fichier non autorisé"}), 400
+    except Exception as global_e:
+        print(f"[GLOBAL UPLOAD ERROR] {global_e}")
+        return jsonify({"error": f"Erreur interne: {str(global_e)}"}), 500
 
 @app.route('/invoices', methods=['GET'])
 def get_invoices():
