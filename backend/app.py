@@ -20,19 +20,25 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import google.generativeai as genai
 
-# Load development configuration
+# Load configuration
 load_dotenv()
-# Check for multiple possible names, prioritized
-GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY') or \
-                 os.environ.get('GOOGLE_API_KEY ') or \
-                 os.environ.get('CLÉ_API_GOOGLE') or \
-                 os.environ.get('CLE_API_GOOGLE')
+
+# ULTRA-ROBUST API KEY DETECTION
+GOOGLE_API_KEY = None
+print("[DEBUG] Checking Environment Variables...")
+for k, v in os.environ.items():
+    # Look for anything that looks like a Google API Key
+    clean_k = k.upper().strip()
+    if clean_k in ['GOOGLE_API_KEY', 'CLÉ_API_GOOGLE', 'CLE_API_GOOGLE', 'GOOGLE_API_KEY_'] or 'CLÉ' in clean_k or 'GOOGLE_API' in clean_k:
+        if v and v.strip().startswith("AIza"):
+            GOOGLE_API_KEY = v.strip()
+            print(f"[SUCCESS] Found API Key in variable: {k}")
+            break
 
 if GOOGLE_API_KEY:
-    print(f"[INFO] Google API Key detected: {GOOGLE_API_KEY[:4]}...{GOOGLE_API_KEY[-4:]}")
     genai.configure(api_key=GOOGLE_API_KEY)
 else:
-    print("[WARNING] No Google API Key found! AI features will be disabled.")
+    print("[WARNING] NO GOOGLE API KEY DETECTED! Ensure you have GOOGLE_API_KEY set in Railway.")
 
 # Initialize Flask app
 # Tell Flask where templates and static files live (frontend/ folder)
@@ -456,6 +462,7 @@ def upload_file():
                 "filename": filename,
                 "extracted_data": invoice_data,
                 "validations": validations,
+                "ai_active": GOOGLE_API_KEY is not None,
                 "message": "Fichier traité avec succès"
             })
         

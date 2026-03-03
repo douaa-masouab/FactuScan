@@ -1217,14 +1217,17 @@
 
             // Validation display
             const vs = document.getElementById('vStatus');
+            const aiStatus = d.ai_active ? '<span style="color:var(--ok)">🤖 IA Active</span>' : '<span style="color:var(--warn)">⚠️ IA Désactivée</span>';
+
             if (d.validations) {
                 vs.classList.add('on');
+                let header = aiStatus + ' | ';
                 if (d.validations.ice_valid && d.validations.math_valid) {
                     vs.className = 'vstatus on ok';
-                    vs.innerHTML = '✅ <b>Vérification réussie</b> : ICE valide et calculs cohérents.';
+                    vs.innerHTML = header + '✅ <b>Vérification réussie</b> : ICE valide et calculs cohérents.';
                 } else {
                     vs.className = 'vstatus on err';
-                    let html = '⚠️ <b>Alertes de validation :</b><ul>';
+                    let html = header + '⚠️ <b>Alertes de validation :</b><ul>';
                     d.validations.errors.forEach(err => html += `<li>${err}</li>`);
                     html += '</ul>';
                     vs.innerHTML = html;
