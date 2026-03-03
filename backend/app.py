@@ -114,32 +114,62 @@ def allowed_file(filename):
     ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg', 'jfif', 'jpe'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def extract_with_gemini_multimodal(filepath, mime_type):
+    """Send image/PDF directly to Gemini to extract data using vision-language capabilities"""
+    if not GOOGLE_API_KEY:
+        return None
+    
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # Open file as binary
+        with open(filepath, "rb") as f:
+            file_data = f.read()
+            
+        content = [
+            "Extrais les informations de cette facture marocaine en format JSON uniquement.",
+            "Champs requis: invoice_number, invoice_date, supplier, ice (15 chiffres), ht_amount, vat_amount, total_amount.",
+            "Si un champ est absent, mets null. Retourne UNIQUEMENT le JSON.",
+            {
+                "mime_type": mime_type,
+                "data": file_data
+            }
+        ]
+        
+        response = model.generate_content(content)
+        # Clean markdown formatting if present
+        json_text = response.text.strip().replace('```json', '').replace('```', '')
+        return json.loads(json_text)
+    except Exception as e:
+        print(f"[Gemini Multimodal Error] {e}")
+        return None
+
 def extract_text_from_image(image_path):
-    """Extract text from image using EasyOCR"""
+    """Extract text from image using EasyOCR (fallback)"""
     try:
         result = reader.readtext(image_path)
         text = ' '.join([item[1] for item in result])
         return text
     except Exception as e:
-        print(f"Error extracting text: {e}")
-        return ""
+        error_msg = str(e)
+        print(f"Error extracting text: {error_msg}")
+        return f"[ERROR: {error_msg}]"
 
 def extract_text_from_pdf(pdf_path):
-    """Extract text from PDF using pdf2image and EasyOCR"""
+    """Extract text from PDF using pdf2image and EasyOCR (fallback)"""
     try:
         images = pdf2image.convert_from_path(pdf_path)
         all_text = ""
         for image in images:
-            # Convert PIL image to numpy array
             img_array = np.array(image)
-            # Extract text
             result = reader.readtext(img_array)
             text = ' '.join([item[1] for item in result])
             all_text += text + " "
         return all_text
     except Exception as e:
-        print(f"Error extracting text from PDF: {e}")
-        return ""
+        error_msg = str(e)
+        print(f"Error extracting text from PDF: {error_msg}")
+        return f"[ERROR PDF: {error_msg}]"
 
 def extract_invoice_data(text):
     """Extract invoice data from OCR text using regex patterns"""
@@ -329,33 +359,39 @@ def upload_file():
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
             
-            # Extract text based on file type
-            try:
-                file_type = magic.from_file(filepath, mime=True)
-            except:
-                file_type = "image/jpeg"
+            # Try Gemini Multimodal First (Best & Lightest)
+            gemini_data = extract_with_gemini_multimodal(filepath, file_type)
+            
+            invoice_data = None
+            extracted_text = "[Données extraites directement par Gemini AI]"
+            
+            if gemini_data:
+                # Success with Gemini Multimodal
+                invoice_data = gemini_data
+                # Ensure HT estimation if possible
+                if invoice_data.get('total_amount') and invoice_data.get('vat_amount') and not invoice_data.get('ht_amount'):
+                    invoice_data['ht_amount'] = invoice_data['total_amount'] - invoice_data['vat_amount']
+            else:
+                # Fallback to local OCR + Regex + Gemini Text analysis
+                print("[INFO] Gemini Multimodal failed or key missing. Using local OCR fallback...")
                 
-            extracted_text = ""
-            if 'pdf' in file_type:
-                extracted_text = extract_text_from_pdf(filepath)
-            else:  # Image file
-                extracted_text = extract_text_from_image(filepath)
-            
-            if not extracted_text:
-                return jsonify({"error": "Impossible d'extraire du texte de ce fichier."}), 422
+                if 'pdf' in file_type:
+                    extracted_text = extract_text_from_pdf(filepath)
+                else:  # Image file
+                    extracted_text = extract_text_from_image(filepath)
+                
+                if not extracted_text or extracted_text.startswith("[ERROR"):
+                    return jsonify({"error": f"Échec de l'OCR local : {extracted_text or 'Mémoire insuffisante'}. Veuillez ajouter une clé GOOGLE_API_KEY pour utiliser l'IA."}), 422
 
-            # Extract invoice data (Basic OCR/Regex)
-            invoice_data = extract_invoice_data(extracted_text)
-            
-            # Refine with Gemini if possible
-            try:
-                gemini_data = extract_with_gemini(extracted_text)
-                if gemini_data:
+                # Step 1: Basic Regex
+                invoice_data = extract_invoice_data(extracted_text)
+                
+                # Step 2: Gemini Text Analysis (Refinement)
+                refine_data = extract_with_gemini(extracted_text)
+                if refine_data:
                     for key in invoice_data:
-                        if gemini_data.get(key) is not None:
-                            invoice_data[key] = gemini_data[key]
-            except Exception as ge:
-                print(f"[Gemini Error] {ge}")
+                        if refine_data.get(key) is not None:
+                            invoice_data[key] = refine_data[key]
 
             # Validate the results
             validations = validate_data(invoice_data)
