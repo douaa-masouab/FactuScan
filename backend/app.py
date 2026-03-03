@@ -22,7 +22,7 @@ import google.generativeai as genai
 
 # Load development configuration
 load_dotenv()
-GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY') or os.environ.get('CLÉ_API_GOOGLE')
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
 
