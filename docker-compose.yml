@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: factuscan
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+  backend:
+    build:
+      context: . # Le contexte de construction est la racine du projet
+      dockerfile: ./backend/Dockerfile # Le Dockerfile est dans le dossier backend
+    container_name: factuscan-backend
+    volumes:
+      - ./backend:/app # Monte le code local dans le conteneur
+    environment:
+      - DATABASE_URL=mysql://root:root@db:3306/factuscan
+    depends_on:
+      - db
+
+  frontend:
+    image: nginx:alpine
+    restart: always
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:

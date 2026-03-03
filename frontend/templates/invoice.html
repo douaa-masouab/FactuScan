@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block title %}FactuScan - Accueil{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="text-center mb-4">FactuScan</h1>
+                <p class="text-center text-muted mb-4">
+                    Analyse intelligente des factures marocaines avec OCR et IA
+                </p>
+                
+                <div class="upload-area p-4 border border-dashed rounded text-center" id="upload-area">
+                    <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #6c757d;"></i>
+                    <h4 class="mt-3">Télécharger une facture</h4>
+                    <p class="text-muted">Glissez et déposez une facture (PDF, JPG, PNG) ou cliquez pour sélectionner</p>
+                    <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png" style="display: none;">
+                    <button id="browse-btn" class="btn btn-primary mt-2">Parcourir</button>
+                </div>
+                
+                <div id="upload-progress" class="mt-4" style="display: none;">
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                </div>
+                
+                <div id="upload-result" class="mt-4" style="display: none;">
+                    <h5>Résultat de l'analyse:</h5>
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Numéro de facture:</strong> <span id="invoice-number">-</span></p>
+                                    <p><strong>Date:</strong> <span id="invoice-date">-</span></p>
+                                    <p><strong>Fournisseur:</strong> <span id="supplier">-</span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>ICE:</strong> <span id="ice">-</span></p>
+                                    <p><strong>Montant TVA:</strong> <span id="vat-amount">-</span> DH</p>
+                                    <p><strong>Montant total:</strong> <span id="total-amount">-</span> DH</p>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <button id="edit-btn" class="btn btn-outline-primary me-2">
+                                    <i class="bi bi-pencil"></i> Modifier
+                                </button>
+                                <button id="save-btn" class="btn btn-success me-2" style="display: none;">
+                                    <i class="bi bi-check-lg"></i> Enregistrer
+                                </button>
+                                <a href="/dashboard" class="btn btn-primary">
+                                    <i class="bi bi-eye"></i> Voir toutes les factures
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4 shadow-sm">
+            <div class="card-body">
+                <h5>Comment ça marche?</h5>
+                <div class="row mt-3">
+                    <div class="col-md-4 text-center">
+                        <i class="bi bi-upload" style="font-size: 2rem; color: #0d6efd;"></i>
+                        <h6 class="mt-2">1. Téléchargez</h6>
+                        <p class="text-muted small">Téléchargez votre facture au format PDF ou image</p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <i class="bi bi-cpu" style="font-size: 2rem; color: #0d6efd;"></i>
+                        <h6 class="mt-2">2. Analyse</h6>
+                        <p class="text-muted small">Notre IA extrait automatiquement les informations</p>
+                    </div>
+                    <div class="col-md-4 text-center">
+                        <i class="bi bi-check-circle" style="font-size: 2rem; color: #0d6efd;"></i>
+                        <h6 class="mt-2">3. Validez</h6>
+                        <p class="text-muted small">Vérifiez et corrigez les données si nécessaire</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadArea = document.getElementById('upload-area');
+    const fileInput = document.getElementById('file-input');
+    const browseBtn = document.getElementById('browse-btn');
+    const uploadProgress = document.getElementById('upload-progress');
+    const uploadResult = document.getElementById('upload-result');
+    const progressBar = uploadProgress.querySelector('.progress-bar');
+    const editBtn = document.getElementById('edit-btn');
+    const saveBtn = document.getElementById('save-btn');
+    
+    let currentInvoiceId = null;
+    
+    // Browse button click
+    browseBtn.addEventListener('click', function() {
+        fileInput.click();
+    });
+    
+    // File input change
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            handleFileUpload(this.files[0]);
+        }
+    });
+    
+    // Drag and drop
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('bg-light');
+    });
+    
+    uploadArea.addEventListener('dragleave', function() {
+        this.classList.remove('bg-light');
+    });
+    
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('bg-light');
+        
+        if (e.dataTransfer.files.length > 0) {
+            handleFileUpload(e.dataTransfer.files[0]);
+        }
+    });
+    
+    // Handle file upload
+    function handleFileUpload(file) {
+        // Validate file type
+        const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+        if (!validTypes.includes(file.type)) {
+            alert('Veuillez sélectionner un fichier PDF ou une image (JPG, PNG).');
+            return;
+        }
+        
+        // Create FormData
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Show progress
+        uploadProgress.style.display = 'block';
+        uploadResult.style.display = 'none';
+        
+        // Create XHR for progress tracking
+        const xhr = new XMLHttpRequest();
+        
+        // Progress event
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percent = Math.round((e.loaded / e.total) * 100);
+                progressBar.style.width = percent + '%';
+                progressBar.textContent = percent + '%';
+            }
+        });
+        
+        // Load event
+        xhr.addEventListener('load', function() {
+            if (xhr.status === 200) {
+                const response = JSON.parse(xhr.responseText);
+                displayInvoiceData(response);
+            } else {
+                alert('Erreur lors du traitement du fichier: ' + xhr.statusText);
+            }
+        });
+        
+        // Error event
+        xhr.addEventListener('error', function() {
+            alert('Erreur réseau lors du traitement du fichier.');
+        });
+        
+        // Open and send request
+        xhr.open('POST', '/api/upload');
+        xhr.send(formData);
+    }
+    
+    // Display invoice data
+    function displayInvoiceData(data) {
+        currentInvoiceId = data.id;
+        
+        // Update UI with extracted data
+        document.getElementById('invoice-number').textContent = data.extracted_data.invoice_number || '-';
+        document.getElementById('invoice-date').textContent = data.extracted_data.invoice_date || '-';
+        document.getElementById('supplier').textContent = data.extracted_data.supplier || '-';
+        document.getElementById('ice').textContent = data.extracted_data.ice || '-';
+        document.getElementById('vat-amount').textContent = data.extracted_data.vat_amount || '-';
+        document.getElementById('total-amount').textContent = data.extracted_data.total_amount || '-';
+        
+        // Show result
+        uploadProgress.style.display = 'none';
+        uploadResult.style.display = 'block';
+    }
+    
+    // Edit button click
+    editBtn.addEventListener('click', function() {
+        // Make fields editable
+        const fields = ['invoice-number', 'invoice-date', 'supplier', 'ice', 'vat-amount', 'total-amount'];
+        
+        fields.forEach(fieldId => {
+            const element = document.getElementById(fieldId);
+            const currentValue = element.textContent;
+            
+            if (currentValue !== '-') {
+                const input = document.createElement('input');
+                input.type = fieldId.includes('amount') ? 'number' : 'text';
+                input.className = 'form-control form-control-sm';
+                input.value = currentValue;
+                input.dataset.field = fieldId;
+                
+                element.textContent = '';
+                element.appendChild(input);
+            }
+        });
+        
+        // Show save button, hide edit button
+        editBtn.style.display = 'none';
+        saveBtn.style.display = 'inline-block';
+    });
+    
+    // Save button click
+    saveBtn.addEventListener('click', function() {
+        // Collect data
+        const updatedData = {};
+        const fields = ['invoice-number', 'invoice-date', 'supplier', 'ice', 'vat-amount', 'total-amount'];
+        
+        fields.forEach(fieldId => {
+            const element = document.getElementById(fieldId);
+            const input = element.querySelector('input');
+            
+            if (input) {
+                const fieldName = fieldId.replace('-', '_');
+                updatedData[fieldName] = input.value;
+                
+                // Update display
+                element.textContent = input.value;
+            }
+        });
+        
+        // Send update request
+        fetch(`/api/invoices/${currentInvoiceId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updatedData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            alert('Facture mise à jour avec succès!');
+            
+            // Show edit button, hide save button
+            editBtn.style.display = 'inline-block';
+            saveBtn.style.display = 'none';
+        })
+        .catch(error => {
+            console.error('Error updating invoice:', error);
+            alert('Erreur lors de la mise à jour de la facture.');
+        });
+    });
+});
+</script>
+{% endblock %}

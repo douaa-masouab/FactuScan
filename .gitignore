@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+uploads/
+mysql_data/
+.vscode/
+.idea/
+*.log

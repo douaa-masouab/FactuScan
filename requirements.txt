@@ -1,0 +1,15 @@
+Flask==2.3.3
+Flask-CORS==4.0.0
+easyocr==1.7.0
+pymysql==1.1.0
+SQLAlchemy==2.0.21
+Pillow==10.0.1
+pdf2image==1.16.3
+pytesseract==0.3.10
+gTTS==2.3.2
+SpeechRecognition==3.10.0
+vosk==0.3.45
+numpy==1.24.3
+opencv-python==4.8.1.78
+python-magic==0.4.27
+werkzeug==2.3.7
