@@ -22,9 +22,17 @@ import google.generativeai as genai
 
 # Load development configuration
 load_dotenv()
-GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY') or os.environ.get('CLÉ_API_GOOGLE')
+# Check for multiple possible names, prioritized
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY') or \
+                 os.environ.get('GOOGLE_API_KEY ') or \
+                 os.environ.get('CLÉ_API_GOOGLE') or \
+                 os.environ.get('CLE_API_GOOGLE')
+
 if GOOGLE_API_KEY:
+    print(f"[INFO] Google API Key detected: {GOOGLE_API_KEY[:4]}...{GOOGLE_API_KEY[-4:]}")
     genai.configure(api_key=GOOGLE_API_KEY)
+else:
+    print("[WARNING] No Google API Key found! AI features will be disabled.")
 
 # Initialize Flask app
 # Tell Flask where templates and static files live (frontend/ folder)
@@ -127,9 +135,17 @@ def extract_with_gemini_multimodal(filepath, mime_type):
             file_data = f.read()
             
         content = [
-            "Extrais les informations de cette facture marocaine en format JSON uniquement.",
-            "Champs requis: invoice_number, invoice_date, supplier, ice (15 chiffres), ht_amount, vat_amount, total_amount.",
-            "Si un champ est absent, mets null. Retourne UNIQUEMENT le JSON.",
+            """Tu es un expert en comptabilité marocaine. 
+            Analyse cette image de facture et extrais les données suivantes en JSON :
+            - invoice_number: Numéro de facture
+            - invoice_date: Date (format JJ/MM/AAAA)
+            - supplier: Nom de l'entreprise/fournisseur
+            - ice: Identifiant Commun de l'Entreprise (15 chiffres)
+            - ht_amount: Montant Hors Taxe (nombre sans devise)
+            - vat_amount: Montant de la TVA (nombre sans devise)
+            - total_amount: Montant Total TTC (nombre sans devise)
+            
+            Réponds UNIQUEMENT avec le bloc JSON. Si une info est absente, mets null.""",
             {
                 "mime_type": mime_type,
                 "data": file_data
@@ -137,9 +153,14 @@ def extract_with_gemini_multimodal(filepath, mime_type):
         ]
         
         response = model.generate_content(content)
-        # Clean markdown formatting if present
-        json_text = response.text.strip().replace('```json', '').replace('```', '')
-        return json.loads(json_text)
+        t = response.text.strip()
+        # Find JSON block even if there is surrounding text
+        if "{" in t and "}" in t:
+            start = t.find("{")
+            end = t.rfind("}") + 1
+            json_text = t[start:end]
+            return json.loads(json_text)
+        return None
     except Exception as e:
         print(f"[Gemini Multimodal Error] {e}")
         return None
