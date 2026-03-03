@@ -8,22 +8,17 @@ RUN apt-get update && apt-get install -y \
     g++ \
     libffi-dev \
     libssl-dev \
-    libpng-dev \
-    libjpeg-dev \
-    libtiff-dev \
-    libwebp-dev \
-    zlib1g-dev \
     libmagic1 \
     poppler-utils \
     libgl1 \
     libglib2.0-0 \
-    tesseract-ocr \
-    tesseract-ocr-fra \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    rm -rf /root/.cache/pip
 
 # Copy the entire project
 COPY . .
