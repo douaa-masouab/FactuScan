@@ -17,6 +17,14 @@ import easyocr
 import re
 import magic
 from flask_cors import CORS
+from dotenv import load_dotenv
+import google.generativeai as genai
+
+# Load development configuration
+load_dotenv()
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
+if GOOGLE_API_KEY:
+    genai.configure(api_key=GOOGLE_API_KEY)
 
 # Initialize Flask app
 # Tell Flask where templates and static files live (frontend/ folder)
@@ -66,6 +74,7 @@ class Invoice(Base):
     invoice_date = Column(String(50))
     supplier = Column(String(255))
     ice = Column(String(50))
+    ht_amount = Column(Float)
     vat_amount = Column(Float)
     total_amount = Column(Float)
     extracted_text = Column(Text)
@@ -121,6 +130,7 @@ def extract_invoice_data(text):
         'invoice_date': None,
         'supplier': None,
         'ice': None,
+        'ht_amount': None,
         'vat_amount': None,
         'total_amount': None
     }
@@ -209,8 +219,71 @@ def extract_invoice_data(text):
                 # Replace comma with dot for float conversion
                 data['total_amount'] = float(total_value.group(1).replace(',', '.'))
             break
+            
+    # Estimate HT if missing but TVA and Total exist
+    if data['total_amount'] and data['vat_amount'] and not data['ht_amount']:
+        data['ht_amount'] = data['total_amount'] - data['vat_amount']
     
     return data
+
+def extract_with_gemini(text):
+    """Refine extraction with Gemini LLM for better precision"""
+    if not GOOGLE_API_KEY:
+        return None
+    
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        prompt = f"""
+        Extract invoice data from the following text in JSON format:
+        Text: {text}
+        
+        Fields to extract:
+        - invoice_number (string)
+        - invoice_date (string)
+        - supplier (string)
+        - ice (string, 15 digits)
+        - ht_amount (float)
+        - vat_amount (float)
+        - total_amount (float)
+        
+        Only return the JSON. If a value is missing, return null.
+        """
+        response = model.generate_content(prompt)
+        # Handle cases where response might contain markdown code blocks
+        json_text = response.text.strip().replace('```json', '').replace('```', '')
+        return json.loads(json_text)
+    except Exception as e:
+        print(f"[Error] Gemini extraction failed: {e}")
+        return None
+
+def validate_data(data):
+    """Validate ICE and check the sum: HT + TVA = Total"""
+    validations = {
+        'ice_valid': True,
+        'math_valid': True,
+        'errors': []
+    }
+    
+    # 1. Check ICE (15 digits)
+    if data.get('ice'):
+        # Remove spaces/dots
+        ice_clean = re.sub(r'[\s\.]', '', str(data['ice']))
+        if not re.match(r'^\d{15}$', ice_clean):
+            validations['ice_valid'] = False
+            validations['errors'].append("L'ICE doit comporter exactement 15 chiffres.")
+    
+    # 2. Check math: HT + VAT ~= Total (with a small margin for rounding)
+    ht = data.get('ht_amount') or 0
+    vat = data.get('vat_amount') or 0
+    total = data.get('total_amount') or 0
+    
+    if total > 0:
+        calculated_total = ht + vat
+        if abs(calculated_total - total) > 0.05: # Allow 0.05 MAD margin
+            validations['math_valid'] = False
+            validations['errors'].append(f"Erreur de calcul: HT ({ht}) + TVA ({vat}) = {calculated_total:.2f} (différe de {total:.2f})")
+            
+    return validations
 
 # Routes
 @app.route('/')
@@ -242,8 +315,19 @@ def upload_file():
         else:  # Image file
             extracted_text = extract_text_from_image(filepath)
         
-        # Extract invoice data
+        # Extract invoice data (Basic OCR/Regex)
         invoice_data = extract_invoice_data(extracted_text)
+        
+        # Refine with Gemini if possible
+        gemini_data = extract_with_gemini(extracted_text)
+        if gemini_data:
+            # Merge: Use Gemini values if they exist, otherwise keep basic OCR/Regex
+            for key in invoice_data:
+                if gemini_data.get(key) is not None:
+                    invoice_data[key] = gemini_data[key]
+        
+        # Validate the results
+        validations = validate_data(invoice_data)
         
         # Save to database
         new_invoice = Invoice(
@@ -252,6 +336,7 @@ def upload_file():
             invoice_date=invoice_data['invoice_date'],
             supplier=invoice_data['supplier'],
             ice=invoice_data['ice'],
+            ht_amount=invoice_data.get('ht_amount'),
             vat_amount=invoice_data['vat_amount'],
             total_amount=invoice_data['total_amount'],
             extracted_text=extracted_text
@@ -259,12 +344,13 @@ def upload_file():
         session.add(new_invoice)
         session.commit()
         
-        # Return extracted data
+        # Return extracted data with validations
         return jsonify({
             "id": new_invoice.id,
             "filename": filename,
             "extracted_data": invoice_data,
-            "message": "File uploaded and processed successfully"
+            "validations": validations,
+            "message": "Fichier traité avec succès"
         })
     
     return jsonify({"error": "File type not allowed"}), 400

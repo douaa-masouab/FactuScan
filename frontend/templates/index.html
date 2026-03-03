@@ -476,6 +476,40 @@
             color: var(--ok)
         }
 
+        .sval.err {
+            color: var(--err)
+        }
+
+        .sval.warn {
+            color: var(--warn)
+        }
+
+        .vstatus {
+            margin-top: 1rem;
+            padding: 0.8rem;
+            border-radius: var(--r1);
+            background: rgba(245, 158, 11, .05);
+            border: 1px solid rgba(245, 158, 11, .15);
+            font-size: 0.82rem;
+            display: none;
+        }
+
+        .vstatus.on {
+            display: block;
+        }
+
+        .vstatus.ok {
+            background: rgba(16, 185, 129, .05);
+            border-color: rgba(16, 185, 129, .15);
+            color: var(--ok);
+        }
+
+        .vstatus.err {
+            background: rgba(239, 68, 68, .05);
+            border-color: rgba(239, 68, 68, .15);
+            color: var(--err);
+        }
+
         /* RAW TEXT */
         .rawbox {
             background: rgba(0, 0, 0, .3);
@@ -848,6 +882,10 @@
                                     <div class="sval" id="rDate">—</div>
                                 </div>
                                 <div class="sc">
+                                    <div class="slbl">🏷️ <span id="lblHt">Montant HT</span></div>
+                                    <div class="sval" id="rHt">—</div>
+                                </div>
+                                <div class="sc">
                                     <div class="slbl">💸 <span id="lblTva">TVA</span></div>
                                     <div class="sval" id="rTva">—</div>
                                 </div>
@@ -856,6 +894,8 @@
                                     <div class="sval ok" id="rTotal">—</div>
                                 </div>
                             </div>
+                            <!-- Validation Status Block -->
+                            <div class="vstatus" id="vStatus"></div>
                             <!-- Detected language badge -->
                             <div id="langBadgeRow" style="margin-bottom:.7rem;font-size:.8rem;color:var(--t3)"></div>
                             <div class="rawbox">
@@ -922,11 +962,11 @@
                 analyzeBtn: '🔍 Analyser la facture', analyzingBtn: '⏳ Analyse en cours…',
                 resultsTitle: "Résultats de l'extraction",
                 emptyMsg: 'Aucune analyse effectuée. Chargez une facture et cliquez sur Analyser.',
-                lSupplier: 'Fournisseur', lIce: 'ICE', lNum: 'N° Facture', lDate: 'Date', lTva: 'TVA', lTotal: 'Montant TTC',
-                lRaw: 'Texte extrait brut', nd: 'Non détecté',
+                lSupplier: 'Fournisseur', lIce: 'ICE', lNum: 'N° Facture', lDate: 'Date', lHt: 'Montant HT', lTva: 'TVA', lTotal: 'Montant TTC',
+                lRaw: 'Texte extrait brut', nd: 'N/A',
                 colFile: 'Fichier', colNum: 'N° Facture', colDate: 'Date', colSupplier: 'Fournisseur',
-                colTotal: 'Montant TTC', colLang: 'Langue', colStatus: 'Statut',
-                statusDone: 'Analysé', noHistory: 'Aucun historique',
+                colTotal: 'Montant', colLang: 'Langue', colStatus: 'Statut',
+                statusDone: 'Traité', noHistory: 'Aucun historique',
                 btnSpeak: '🔊 Lire', btnClear: '🗑️ Effacer',
                 voiceTitle: '🎙️ Assistant Vocal', voiceHint: 'Dites: résumé, total ou aide…',
                 micSpeak: 'Parler', micStop: 'Arrêter', micListening: '🎙️ Écoute en cours…',
@@ -955,7 +995,7 @@
                 analyzeBtn: '🔍 تحليل الفاتورة', analyzingBtn: '⏳ جاري التحليل…',
                 resultsTitle: 'نتائج الاستخراج',
                 emptyMsg: 'لم يتم إجراء أي تحليل. حمّل فاتورة وانقر على تحليل.',
-                lSupplier: 'المورد', lIce: 'ICE', lNum: 'رقم الفاتورة', lDate: 'التاريخ', lTva: 'ض.ق.م', lTotal: 'المجموع الشامل',
+                lSupplier: 'المورد', lIce: 'ICE', lNum: 'رقم الفاتورة', lDate: 'التاريخ', lHt: 'المبلغ الصافي', lTva: 'ض.ق.م', lTotal: 'المجموع الشامل',
                 lRaw: 'النص المستخرج الخام', nd: 'غير متوفر',
                 colFile: 'الملف', colNum: 'رقم الفاتورة', colDate: 'التاريخ', colSupplier: 'المورد',
                 colTotal: 'المجموع', colLang: 'اللغة', colStatus: 'الحالة',
@@ -1079,13 +1119,29 @@
                 }
                 S.invLang = 'fr';
                 setP(95, ui('pgAnalyze'));
-                const data = parse(text);
-                data.raw = text; data.filename = S.file.name; data.invLang = S.invLang;
+
+                // --- Switch to Server-side Analysis for Gemini/AI ---
+                const formData = new FormData();
+                formData.append('file', S.file);
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error("Erreur serveur lors de l'analyse.");
+
+                const res = await response.json();
+                const data = res.extracted_data;
+                data.raw = text; // Keep the local text if needed or use res if backend returns it
+                data.validations = res.validations;
+                data.filename = S.file.name;
+
                 S.currentData = data;
                 displayResults(data);
                 saveHistory(data);
                 setP(100, ui('pgDone'));
-                showToast('✅ ' + T[S.invLang].invLang + ' — ' + ui('tDone'));
+                showToast('✅ ' + ui('tDone'));
             } catch (e) { console.error(e); showToast('❌ ' + e.message); }
             finally {
                 setTimeout(() => prog(false), 800);
@@ -1152,13 +1208,41 @@
             document.getElementById('rIce').textContent = v(d.ice);
             document.getElementById('rNum').textContent = v(d.invoice_number);
             document.getElementById('rDate').textContent = v(d.invoice_date);
-            document.getElementById('rTva').textContent = d.vat_amount ? d.vat_amount.toFixed(2) + ' DH' : nd;
-            document.getElementById('rTotal').textContent = d.total_amount ? d.total_amount.toFixed(2) + ' DH' : nd;
+            document.getElementById('rHt').textContent = d.ht_amount ? parseFloat(d.ht_amount).toFixed(2) + ' DH' : nd;
+            document.getElementById('rTva').textContent = d.vat_amount ? parseFloat(d.vat_amount).toFixed(2) + ' DH' : nd;
+            document.getElementById('rTotal').textContent = d.total_amount ? parseFloat(d.total_amount).toFixed(2) + ' DH' : nd;
             document.getElementById('rText').textContent = (d.raw || '').substring(0, 3000);
-            // Language badge
-            const bl = document.getElementById('langBadgeRow');
-            if (bl) {
-                bl.innerHTML = ``;
+
+            // Validation display
+            const vs = document.getElementById('vStatus');
+            if (d.validations) {
+                vs.classList.add('on');
+                if (d.validations.ice_valid && d.validations.math_valid) {
+                    vs.className = 'vstatus on ok';
+                    vs.innerHTML = '✅ <b>Vérification réussie</b> : ICE valide et calculs cohérents.';
+                } else {
+                    vs.className = 'vstatus on err';
+                    let html = '⚠️ <b>Alertes de validation :</b><ul>';
+                    d.validations.errors.forEach(err => html += `<li>${err}</li>`);
+                    html += '</ul>';
+                    vs.innerHTML = html;
+
+                    // Highlight problematic fields
+                    if (!d.validations.ice_valid) document.getElementById('rIce').classList.add('err');
+                    else document.getElementById('rIce').classList.remove('err');
+
+                    if (!d.validations.math_valid) {
+                        document.getElementById('rHt').classList.add('warn');
+                        document.getElementById('rTva').classList.add('warn');
+                        document.getElementById('rTotal').classList.add('warn');
+                    } else {
+                        document.getElementById('rHt').classList.remove('warn');
+                        document.getElementById('rTva').classList.remove('warn');
+                        document.getElementById('rTotal').classList.remove('warn');
+                    }
+                }
+            } else {
+                vs.classList.remove('on');
             }
         }
 
