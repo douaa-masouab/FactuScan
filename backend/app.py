@@ -134,7 +134,7 @@ def extract_with_gemini_multimodal(filepath, mime_type):
         return None
     
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         
         # Open file as binary
         with open(filepath, "rb") as f:
@@ -150,6 +150,7 @@ def extract_with_gemini_multimodal(filepath, mime_type):
             - ht_amount: Montant Hors Taxe (nombre sans devise)
             - vat_amount: Montant de la TVA (nombre sans devise)
             - total_amount: Montant Total TTC (nombre sans devise)
+            - raw_text: Le texte complet brut lisible sur la facture
             
             Réponds UNIQUEMENT avec le bloc JSON. Si une info est absente, mets null.""",
             {
@@ -160,16 +161,35 @@ def extract_with_gemini_multimodal(filepath, mime_type):
         
         response = model.generate_content(content)
         t = response.text.strip()
+        print(f"[GEMINI RAW RESP] {t}")  # Debug print
+        
         # Find JSON block even if there is surrounding text
         if "{" in t and "}" in t:
             start = t.find("{")
             end = t.rfind("}") + 1
             json_text = t[start:end]
-            return json.loads(json_text)
-        return None
+            data = json.loads(json_text)
+            
+            raw_text = data.get('raw_text', '')
+            
+            # Clean up amounts to be float
+            for field in ['ht_amount', 'vat_amount', 'total_amount']:
+                val = data.get(field)
+                if val is not None:
+                    try:
+                        # Handle cases where model returns a string with comma or spaces
+                        if isinstance(val, str):
+                            val = val.replace(' ', '').replace(',', '.')
+                        data[field] = float(val)
+                    except ValueError:
+                        data[field] = None
+                        
+            # Return both data and the full text explanation
+            return data, raw_text
+        return None, None
     except Exception as e:
         print(f"[Gemini Multimodal Error] {e}")
-        return None
+        return None, None
 
 def extract_text_from_image(image_path):
     """Extract text from image using EasyOCR (fallback)"""
@@ -316,7 +336,7 @@ def extract_with_gemini(text):
         return None
     
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"""
         Extract invoice data from the following text in JSON format:
         Text: {text}
@@ -355,6 +375,9 @@ def validate_data(data):
         if not re.match(r'^\d{15}$', ice_clean):
             validations['ice_valid'] = False
             validations['errors'].append("L'ICE doit comporter exactement 15 chiffres.")
+    else:
+        validations['ice_valid'] = False
+        validations['errors'].append("ICE introuvable ou illisible.")
     
     # 2. Check math: HT + VAT ~= Total (with a small margin for rounding)
     ht = data.get('ht_amount') or 0
@@ -365,7 +388,10 @@ def validate_data(data):
         calculated_total = ht + vat
         if abs(calculated_total - total) > 0.05: # Allow 0.05 MAD margin
             validations['math_valid'] = False
-            validations['errors'].append(f"Erreur de calcul: HT ({ht}) + TVA ({vat}) = {calculated_total:.2f} (différe de {total:.2f})")
+            validations['errors'].append(f"Erreur de calcul: HT ({ht}) + TVA ({vat}) = {calculated_total:.2f} (diffère de {total:.2f})")
+    else:
+        validations['math_valid'] = False
+        validations['errors'].append("Montants (HT/TVA/TTC) introuvables ou illisibles.")
             
     return validations
 
@@ -399,10 +425,10 @@ def upload_file():
                 file_type = "image/jpeg"
                 
             # Try Gemini Multimodal First (Best & Lightest)
-            gemini_data = extract_with_gemini_multimodal(filepath, file_type)
+            gemini_data, gemini_text = extract_with_gemini_multimodal(filepath, file_type)
             
             invoice_data = None
-            extracted_text = "[Données extraites directement par Gemini AI]"
+            extracted_text = gemini_text if gemini_text else "[Données extraites directement par Gemini AI]"
             
             if gemini_data:
                 # Success with Gemini Multimodal
@@ -461,6 +487,7 @@ def upload_file():
                 "id": invoice_id,
                 "filename": filename,
                 "extracted_data": invoice_data,
+                "extracted_text": extracted_text,
                 "validations": validations,
                 "ai_active": GOOGLE_API_KEY is not None,
                 "message": "Fichier traité avec succès"

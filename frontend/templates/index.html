@@ -1135,7 +1135,8 @@
                 }
 
                 const data = res.extracted_data;
-                data.raw = text; // Keep the local text if needed or use res if backend returns it
+                data.ai_active = res.ai_active;
+                data.raw = res.extracted_text || text; // Use backend extracted text or fallback to local
                 data.validations = res.validations;
                 data.filename = S.file.name;
 
