@@ -231,20 +231,27 @@
 
             const tbody = document.getElementById('tblBody');
             if (historyData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Aucune facture n'a encore été analysée. Allez sur <i>Nouvelle Facture</i> pour commencer.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Aucune facture n'a encore été analysée. Allez sur <i>Nouvelle Facture</i> pour commencer.</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = historyData.map((d, index) => {
+                // TVA : taux en % si HT disponible, sinon montant DH
+                const tvaA = parseFloat(d.vat_amount) || 0;
+                const htA = parseFloat(d.ht_amount) || 0;
+                const tvaTxt = tvaA > 0 && htA > 0
+                    ? (tvaA / htA * 100).toFixed(0) + '%'
+                    : (tvaA > 0 ? tvaA.toFixed(2) + ' DH' : '—');
+                const seqNum = historyData.length - index;
                 return `
                     <tr>
-                        <td style="color:var(--t2)">${d.filename || '—'}</td>
+                        <td style="color:var(--t2);font-size:0.8rem">${d.filename || '—'}</td>
                         <td style="font-weight:600">${d.supplier || '—'}</td>
-                        <td>${d.invoice_number || '—'}</td>
+                        <td style="color:#6366f1;font-weight:700">${seqNum}</td>
                         <td>${d.invoice_date || '—'}</td>
-                        <td style="color:#f59e0b">${d.vat_amount ? d.vat_amount.toFixed(2) : '-'}</td>
-                        <td style="color:var(--ok);font-weight:700">${d.total_amount ? d.total_amount.toFixed(2) : '-'}</td>
-                        <td><button class="btn" onclick="deleteItem(${index})" style="padding:0.4rem 0.8rem;font-size:0.8rem;border-color:#ef4444;color:#ef4444">Supprimer</button></td>
+                        <td style="color:#f59e0b">${tvaTxt}</td>
+                        <td style="color:var(--ok);font-weight:700">${d.total_amount ? parseFloat(d.total_amount).toFixed(2) + ' DH' : '—'}</td>
+                        <td><button class="btn" onclick="deleteItem(${index})" style="padding:0.4rem 0.8rem;font-size:0.8rem;border-color:#ef4444;color:#ef4444">🗑️ Supprimer</button></td>
                     </tr>
                 `;
             }).join('');

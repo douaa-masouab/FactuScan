@@ -927,11 +927,12 @@
                             <th id="thSupplier">Fournisseur</th>
                             <th id="thTotal">Montant TTC</th>
                             <th id="thStatus">Statut</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody id="hbody">
                         <tr>
-                            <td colspan="6" style="text-align:center;color:var(--t3);padding:2rem">Aucun historique</td>
+                            <td colspan="7" style="text-align:center;color:var(--t3);padding:2rem">Aucun historique</td>
                         </tr>
                     </tbody>
                 </table>
@@ -1139,6 +1140,8 @@
                 data.raw = res.extracted_text || text; // Use backend extracted text or fallback to local
                 data.validations = res.validations;
                 data.filename = S.file.name;
+                // Assign sequential invoice number (1, 2, 3...)
+                data.seq = S.history.length + 1;
 
                 S.currentData = data;
                 displayResults(data);
@@ -1209,10 +1212,20 @@
             const v = val => val || nd;
             document.getElementById('rSupplier').textContent = v(d.supplier);
             document.getElementById('rIce').textContent = v(d.ice);
-            document.getElementById('rNum').textContent = v(d.invoice_number);
+            document.getElementById('rNum').textContent = d.seq || v(d.invoice_number);
             document.getElementById('rDate').textContent = v(d.invoice_date);
             document.getElementById('rHt').textContent = d.ht_amount ? parseFloat(d.ht_amount).toFixed(2) + ' DH' : nd;
-            document.getElementById('rTva').textContent = d.vat_amount ? parseFloat(d.vat_amount).toFixed(2) + ' DH' : nd;
+            // TVA : afficher le taux en % si possible, sinon le montant
+            const tvaAmt = parseFloat(d.vat_amount) || 0;
+            const htAmt = parseFloat(d.ht_amount) || 0;
+            let tvaDisplay = nd;
+            if (tvaAmt > 0 && htAmt > 0) {
+                const rate = (tvaAmt / htAmt * 100).toFixed(0);
+                tvaDisplay = rate + '%  (' + tvaAmt.toFixed(2) + ' DH)';
+            } else if (tvaAmt > 0) {
+                tvaDisplay = tvaAmt.toFixed(2) + ' DH';
+            }
+            document.getElementById('rTva').textContent = tvaDisplay;
             document.getElementById('rTotal').textContent = d.total_amount ? parseFloat(d.total_amount).toFixed(2) + ' DH' : nd;
             document.getElementById('rText').textContent = (d.raw || '').substring(0, 3000);
 
@@ -1254,17 +1267,34 @@
 
         /* ── HISTORY ────────────────────────────────────────────── */
         function saveHistory(d) { S.history.unshift({ ...d, raw: undefined }); if (S.history.length > 50) S.history.pop(); localStorage.setItem('fs-history', JSON.stringify(S.history)); renderHistory(); }
+        function deleteHistoryItem(idx) {
+            if (confirm('Supprimer cette facture de l\'historique ?')) {
+                S.history.splice(idx, 1);
+                localStorage.setItem('fs-history', JSON.stringify(S.history));
+                renderHistory();
+                showToast('🗑️ Facture supprimée de l\'historique');
+            }
+        }
         function renderHistory() {
             const tb = document.getElementById('hbody');
-            if (!S.history.length) { tb.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:2rem">${ui('noHistory')}</td></tr>`; return; }
-            tb.innerHTML = S.history.map(h => `<tr>
-    <td>${h.filename || '—'}</td>
-    <td>${h.invoice_number || '—'}</td>
+            if (!S.history.length) { tb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:2rem">${ui('noHistory')}</td></tr>`; return; }
+            tb.innerHTML = S.history.map((h, idx) => {
+                const tvaA = parseFloat(h.vat_amount) || 0;
+                const htA = parseFloat(h.ht_amount) || 0;
+                let tvaTxt = tvaA > 0 && htA > 0
+                    ? (tvaA / htA * 100).toFixed(0) + '%'
+                    : (tvaA > 0 ? tvaA.toFixed(2) + ' DH' : '—');
+                const seqNum = S.history.length - idx;
+                return `<tr>
+    <td style="color:var(--t2);font-size:.78rem">${h.filename || '—'}</td>
+    <td style="color:var(--acc);font-weight:700">${seqNum}</td>
     <td>${h.invoice_date || '—'}</td>
     <td>${h.supplier || '—'}</td>
-    <td>${h.total_amount ? h.total_amount.toFixed(2) + ' DH' : '—'}</td>
+    <td style="color:var(--ok);font-weight:700">${h.total_amount ? parseFloat(h.total_amount).toFixed(2) + ' DH' : '—'}</td>
     <td><span class="badge">${ui('statusDone')}</span></td>
-  </tr>`).join('');
+    <td><button onclick="deleteHistoryItem(${idx})" style="background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.35);color:#ef4444;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.75rem;font-family:inherit">🗑️ Supprimer</button></td>
+  </tr>`;
+            }).join('');
         }
         function toggleHistory() { const p = document.getElementById('hpanel'); p.classList.toggle('on'); if (p.classList.contains('on')) renderHistory(); }
 
