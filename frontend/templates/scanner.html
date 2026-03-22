@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+
+{% block title %}Scanner — FactuScan{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+    .main {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        max-width: 1400px;
+        margin: 2rem auto;
+        padding: 0 2rem;
+    }
+
+    .uzone {
+        border: 2px dashed rgba(99, 102, 241, .35);
+        border-radius: var(--r2);
+        padding: 3rem 1.2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: var(--tr);
+        background: rgba(99, 102, 241, .03);
+        position: relative;
+    }
+
+    .uzone:hover,
+    .uzone.drag {
+        border-color: var(--acc);
+        background: rgba(99, 102, 241, .08);
+    }
+
+    .uzone input[type=file] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+    }
+
+    .uicon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    .utitle {
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: .5rem;
+    }
+
+    .usub {
+        font-size: .9rem;
+        color: var(--t3);
+    }
+
+    .ubadge {
+        display: inline-flex;
+        margin-top: 1rem;
+        padding: 6px 14px;
+        background: rgba(99, 102, 241, .12);
+        border: 1px solid rgba(99, 102, 241, .28);
+        border-radius: 999px;
+        font-size: .8rem;
+        color: var(--acc);
+        font-weight: 500;
+    }
+
+    .finfo {
+        display: none;
+        margin-top: 1rem;
+        padding: 1rem;
+        background: rgba(16, 185, 129, .08);
+        border: 1px solid rgba(16, 185, 129, .25);
+        border-radius: var(--r1);
+        align-items: center;
+        gap: 10px;
+    }
+
+    .finfo.on {
+        display: flex;
+    }
+
+    .fname {
+        font-size: .9rem;
+        font-weight: 500;
+        color: var(--ok);
+        flex: 1;
+    }
+
+    .prev {
+        display: none;
+        margin-top: 1rem;
+        border-radius: var(--r2);
+        overflow: hidden;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, .3);
+    }
+
+    .prev.on {
+        display: flex;
+        justify-content: center;
+    }
+
+    .prev img {
+        max-width: 100%;
+        max-height: 400px;
+        object-fit: contain;
+    }
+
+    .prog {
+        display: none;
+        margin-top: 1.5rem;
+    }
+
+    .prog.on {
+        display: block;
+    }
+
+    .ptrack {
+        width: 100%;
+        height: 8px;
+        background: rgba(255, 255, 255, .08);
+        border-radius: 999px;
+        overflow: hidden;
+        margin-bottom: .7rem;
+    }
+
+    .pfill {
+        height: 100%;
+        background: var(--grad);
+        width: 0;
+        transition: width .3s;
+    }
+
+    .pstatus {
+        font-size: .85rem;
+        color: var(--t2);
+        text-align: center;
+    }
+
+    .scards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .sc {
+        background: rgba(255, 255, 255, .03);
+        border: 1px solid var(--border);
+        border-radius: var(--r2);
+        padding: 1rem;
+    }
+
+    .slbl {
+        font-size: .75rem;
+        font-weight: 600;
+        color: var(--t3);
+        text-transform: uppercase;
+        margin-bottom: .5rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .sval {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--t1);
+    }
+
+    .sval.hl {
+        color: var(--acc);
+    }
+
+    .sval.ok {
+        color: var(--ok);
+    }
+
+    .vstatus {
+        margin-top: 1.5rem;
+        padding: 1rem;
+        border-radius: var(--r2);
+        display: none;
+        font-size: 0.9rem;
+    }
+
+    .vstatus.on {
+        display: block;
+    }
+
+    .vstatus.ok {
+        background: rgba(16, 185, 129, .05);
+        border: 1px solid rgba(16, 185, 129, .15);
+        color: var(--ok);
+    }
+
+    .vstatus.err {
+        background: rgba(239, 68, 68, .05);
+        border: 1px solid rgba(239, 68, 68, .15);
+        color: var(--err);
+    }
+
+    .rawbox {
+        background: rgba(0, 0, 0, .2);
+        border: 1px solid var(--border);
+        border-radius: var(--r2);
+        padding: 1.2rem;
+        margin-top: 1.5rem;
+    }
+
+    .rawcontent {
+        font-family: 'Courier New', monospace;
+        font-size: .85rem;
+        color: var(--t2);
+        white-space: pre-wrap;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .abtns {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .toast {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        background: var(--panel);
+        border: 1px solid var(--border);
+        padding: 1rem 1.5rem;
+        border-radius: var(--r2);
+        transform: translateY(100px);
+        opacity: 0;
+        transition: var(--tr);
+    }
+
+    .toast.on {
+        transform: translateY(0);
+        opacity: 1;
+    }
+
+    @media (max-width: 900px) {
+        .main {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="main">
+    <!-- LEFT: Upload -->
+    <section>
+        <div class="card" style="padding: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 1.5rem;">
+                <div
+                    style="width: 32px; height: 32px; background: rgba(99,102,241,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-cloud-arrow-up" style="color: var(--acc);"></i>
+                </div>
+                <h2 style="font-size: 1.2rem;">Charger une facture</h2>
+            </div>
+
+            <div class="uzone" id="dropZone">
+                <input type="file" id="fileInput" accept="image/*,.jfif,.jpe,application/pdf"
+                    onchange="handleFileSelect(event)">
+                <span class="uicon">📄</span>
+                <p class="utitle">Déposez votre facture ici</p>
+                <p class="usub">Ou cliquez pour sélectionner un fichier</p>
+                <span class="ubadge">JPG · PNG · PDF · MAX 20MB</span>
+            </div>
+
+            <div class="finfo" id="fileInfo">
+                <i class="bi bi-check-circle-fill" style="color: var(--ok);"></i>
+                <span class="fname" id="fileName">—</span>
+                <span style="color: var(--t3); font-size: .8rem;" id="fileSize"></span>
+            </div>
+
+            <div class="prev" id="prevBox">
+                <img id="prevImg" alt="aperçu">
+            </div>
+
+            <div class="prog" id="progArea">
+                <div class="ptrack">
+                    <div class="pfill" id="pfill"></div>
+                </div>
+                <p class="pstatus" id="pstatus">Initialisation...</p>
+            </div>
+
+            <button class="btn-primary w-100" id="analyzeBtn" disabled onclick="analyze()"
+                style="margin-top: 1.5rem; height: 54px; font-size: 1.1rem;">
+                <i class="bi bi-search"></i> Analyser la facture
+            </button>
+        </div>
+    </section>
+
+    <!-- RIGHT: Results -->
+    <section>
+        <div class="card" style="padding: 1.5rem;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 1.5rem;">
+                <div
+                    style="width: 32px; height: 32px; background: rgba(6,182,212,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-bar-chart" style="color: var(--acc3);"></i>
+                </div>
+                <h2 style="font-size: 1.2rem;">Résultats de l'extraction</h2>
+            </div>
+
+            <div id="rempty" style="text-align: center; padding: 4rem 1rem; color: var(--t3);">
+                <i class="bi bi-receipt" style="font-size: 3rem; opacity: .2; display: block; margin-bottom: 1rem;"></i>
+                <p>Aucune analyse en cours. Veuillez charger un document.</p>
+            </div>
+
+            <div id="rgrid" style="display: none;">
+                <div class="scards">
+                    <div class="sc">
+                        <div class="slbl"><i class="bi bi-building"></i> Fournisseur</div>
+                        <div class="sval" id="rSupplier">—</div>
+                    </div>
+                    <div class="sc">
+                        <div class="slbl"><i class="bi bi-hash"></i> ICE</div>
+                        <div class="sval" id="rIce">—</div>
+                    </div>
+                    <div class="sc">
+                        <div class="slbl"><i class="bi bi-file-earmark-text"></i> N° Facture</div>
+                        <div class="sval hl" id="rNum">—</div>
+                    </div>
+                    <div class="sc">
+                        <div class="slbl"><i class="bi bi-calendar3"></i> Date</div>
+                        <div class="sval" id="rDate">—</div>
+                    </div>
+                    <div class="sc">
+                        <div class="slbl"><i class="bi bi-tag"></i> Montant HT</div>
+                        <div class="sval" id="rHt">—</div>
+                    </div>
+                    <div class="sc">
+                        <div class="slbl"><i class="bi bi-percent"></i> TVA</div>
+                        <div class="sval" id="rTva">—</div>
+                    </div>
+                    <div class="sc" style="grid-column: span 2; background: rgba(16,185,129,0.05);">
+                        <div class="slbl"><i class="bi bi-cash-coin"></i> Montant TTC</div>
+                        <div class="sval ok" id="rTotal" style="font-size: 1.5rem;">—</div>
+                    </div>
+                </div>
+
+                <div class="vstatus" id="vStatus"></div>
+
+                <div class="rawbox">
+                    <div style="font-size: .8rem; color: var(--t3); margin-bottom: .8rem; font-weight: 600;">TEXTE
+                        EXTRAIT BRUT</div>
+                    <pre class="rawcontent" id="rText"></pre>
+                </div>
+
+                <div class="abtns">
+                    <button class="btn-secondary" onclick="speakResults()"><i class="bi bi-volume-up"></i> Lire</button>
+                    <button class="btn-secondary" onclick="exportCSV()"><i class="bi bi-download"></i> CSV</button>
+                    <button class="btn-secondary" onclick="clearAll()" style="color: var(--err);"><i
+                            class="bi bi-trash"></i> Effacer</button>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div class="toast" id="toast"><span id="toastTxt"></span></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Copy/Paste logic from old index.html (S object, analyze, displayResults, etc.)
+    const T = {
+        fr: {
+            analyzingBtn: '⌛ Analyse en cours...',
+            pgInit: 'Initialisation...',
+            pgPdf: 'Lecture PDF...',
+            pgModel: 'Chargement OCR...',
+            pgExtract: 'Extraction...',
+            pgAnalyze: 'Analyse IA...',
+            pgDone: 'Terminé !',
+            tDone: 'Analyse terminée avec succès.',
+            tNoData: 'Aucune donnée à exporter.',
+            tReading: 'Lecture vocale en cours...',
+            tCleared: 'Formulaire effacé.',
+            nd: 'N/A'
+        }
+    };
+
+    const ui = k => T.fr[k] || k;
+
+    const S = {
+        file: null,
+        currentData: null,
+        isAnalyzing: false,
+        history: JSON.parse(localStorage.getItem('fs-history') || '[]')
+    };
+
+    function handleFileSelect(e) { const f = e.target.files[0]; if (f) loadFile(f); }
+
+    function loadFile(f) {
+        S.file = f;
+        document.getElementById('fileName').textContent = f.name;
+        document.getElementById('fileSize').textContent = (f.size / 1024 / 1024).toFixed(2) + ' MB';
+        document.getElementById('fileInfo').classList.add('on');
+        document.getElementById('analyzeBtn').disabled = false;
+        if (f.type.startsWith('image/')) {
+            document.getElementById('prevImg').src = URL.createObjectURL(f);
+            document.getElementById('prevBox').classList.add('on');
+        } else {
+            document.getElementById('prevBox').classList.remove('on');
+        }
+    }
+
+    async function analyze() {
+        if (!S.file || S.isAnalyzing) return;
+        S.isAnalyzing = true;
+        const ab = document.getElementById('analyzeBtn');
+        ab.disabled = true; ab.textContent = ui('analyzingBtn');
+        document.getElementById('progArea').classList.add('on');
+
+        try {
+            const formData = new FormData();
+            formData.append('file', S.file);
+
+            const response = await fetch('/upload', { method: 'POST', body: formData });
+            const res = await response.json();
+
+            if (!response.ok) throw new Error(res.error || "Erreur d'analyse");
+
+            S.currentData = res.extracted_data;
+            S.currentData.raw = res.extracted_text;
+            S.currentData.validations = res.validations;
+            S.currentData.ai_active = res.ai_active;
+            S.currentData.filename = S.file.name;
+
+            displayResults(S.currentData);
+            saveHistory(S.currentData);
+            showToast('✅ ' + ui('tDone'));
+        } catch (e) {
+            showToast('❌ ' + e.message);
+        } finally {
+            ab.disabled = false; ab.textContent = 'Analyser la facture';
+            S.isAnalyzing = false;
+            document.getElementById('progArea').classList.remove('on');
+        }
+    }
+
+    function displayResults(d) {
+        document.getElementById('rempty').style.display = 'none';
+        document.getElementById('rgrid').style.display = 'block';
+
+        document.getElementById('rSupplier').textContent = d.supplier || 'N/A';
+        document.getElementById('rIce').textContent = d.ice || 'N/A';
+        document.getElementById('rNum').textContent = d.invoice_number || 'N/A';
+        document.getElementById('rDate').textContent = d.invoice_date || 'N/A';
+        document.getElementById('rHt').textContent = d.ht_amount ? d.ht_amount.toFixed(2) + ' DH' : 'N/A';
+        document.getElementById('rTva').textContent = d.vat_amount ? d.vat_amount.toFixed(2) + ' DH' : 'N/A';
+        document.getElementById('rTotal').textContent = d.total_amount ? d.total_amount.toFixed(2) + ' DH' : 'N/A';
+        document.getElementById('rText').textContent = d.raw || '';
+
+        const vs = document.getElementById('vStatus');
+        if (d.validations) {
+            vs.className = 'vstatus on ' + (d.validations.math_valid ? 'ok' : 'err');
+            vs.innerHTML = d.validations.math_valid ? '✅ Calculs vérifiés' : '⚠️ ' + d.validations.errors.join(', ');
+        }
+    }
+
+    function saveHistory(d) {
+        S.history.unshift(d);
+        if (S.history.length > 50) S.history.pop();
+        localStorage.setItem('fs-history', JSON.stringify(S.history));
+    }
+
+    function clearAll() {
+        S.file = null; S.currentData = null;
+        document.getElementById('fileInput').value = '';
+        document.getElementById('fileInfo').classList.remove('on');
+        document.getElementById('prevBox').classList.remove('on');
+        document.getElementById('analyzeBtn').disabled = true;
+        document.getElementById('rempty').style.display = 'block';
+        document.getElementById('rgrid').style.display = 'none';
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        document.getElementById('toastTxt').textContent = msg;
+        t.classList.add('on');
+        setTimeout(() => t.classList.remove('on'), 3000);
+    }
+</script>
+{% endblock %}

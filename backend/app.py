@@ -400,6 +400,34 @@ def validate_data(data):
 def index():
     return render_template('index.html')
 
+@app.route('/dashboard')
+def dashboard():
+    return render_template('dashboard.html')
+
+@app.route('/scanner')
+def scanner():
+    return render_template('scanner.html')
+
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
+@app.route('/docs')
+def docs():
+    return render_template('docs.html')
+
+@app.route('/contact')
+def contact():
+    return render_template('contact.html')
+
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
+@app.route('/terms')
+def terms():
+    return render_template('terms.html')
+
 @app.route('/upload', methods=['POST'])
 def upload_file():
     try:
@@ -596,33 +624,56 @@ def delete_invoice(invoice_id):
 
 @app.route('/voice/command', methods=['POST'])
 def voice_command():
-    """Process voice command and return response"""
+    """Process voice command using Gemini for natural language understanding"""
     data = request.json
-    command = data.get('command', '').lower()
+    command = data.get('command', '')
     
-    response = ""
-    
-    if 'résumé' in command or 'summary' in command:
-        # Get recent invoices summary
-        invoices = session.query(Invoice).order_by(Invoice.created_at.desc()).limit(5).all()
-        total = sum(inv.total_amount or 0 for inv in invoices)
-        count = len(invoices)
+    if not command:
+        return jsonify({"response": "Je n'ai pas entendu votre commande."})
+
+    try:
+        # Get context from database to feed Gemini
+        total_ttc = 0
+        total_vats = 0
+        invoice_count = 0
+        recent_invoices = []
         
-        response = f"Vous avez {count} factures récentes avec un total de {total:.2f} dirhams."
-    
-    elif 'total' in command:
-        # Get total amount of all invoices
-        total = session.query(Invoice).with_entities(func.coalesce(func.sum(Invoice.total_amount), 0)).scalar()
+        if DB_AVAILABLE:
+            invoice_count = session.query(Invoice).count()
+            total_ttc = session.query(Invoice).with_entities(func.coalesce(func.sum(Invoice.total_amount), 0)).scalar()
+            total_vats = session.query(Invoice).with_entities(func.coalesce(func.sum(Invoice.vat_amount), 0)).scalar()
+            
+            # Get last 3 invoices for context
+            latest = session.query(Invoice).order_by(Invoice.created_at.desc()).limit(3).all()
+            for inv in latest:
+                recent_invoices.append(f"- Facture de {inv.supplier} pour {inv.total_amount} DH le {inv.invoice_date}")
+
+        context = f"""
+        Tu es l'assistant intelligent de FactuScan. Tu aides l'utilisateur à gérer ses factures.
+        Voici les données actuelles du compte :
+        - Nombre total de factures : {invoice_count}
+        - Montant total TTC : {total_ttc:.2f} dirhams
+        - Total TVA : {total_vats:.2f} dirhams
+        - Factures récentes : {", ".join(recent_invoices) if recent_invoices else "Aucune"}
         
-        response = f"Le montant total de toutes les factures est de {total:.2f} dirhams."
-    
-    elif 'aide' in command or 'help' in command:
-        response = "Vous pouvez dire: résumé, total, ou réessayer l'OCR."
-    
-    else:
-        response = "Désolé, je n'ai pas compris votre commande."
-    
-    return jsonify({"response": response})
+        L'utilisateur dit : "{command}"
+        
+        Réponds de manière courte, amicale et professionnelle en français (ou en arabe si la question est en arabe). 
+        Si l'utilisateur demande quelque chose que tu ne peux pas faire (comme supprimer une facture par la voix), explique-lui poliment.
+        """
+
+        if GOOGLE_API_KEY:
+            model = genai.GenerativeModel('gemini-2.0-flash')
+            response = model.generate_content(context)
+            ai_response = response.text.strip()
+        else:
+            ai_response = "Désolé, l'IA n'est pas configurée pour répondre de manière fluide. Veuillez vérifier votre clé API."
+
+        return jsonify({"response": ai_response})
+
+    except Exception as e:
+        print(f"[Voice AI Error] {e}")
+        return jsonify({"response": "Désolé, j'ai rencontré une erreur en traitant votre demande."})
 
 @app.route('/voice/synthesize', methods=['POST'])
 def synthesize_speech():

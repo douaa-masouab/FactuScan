@@ -1,320 +1,195 @@
-<!DOCTYPE html>
-<html lang="fr" dir="ltr">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FactuScan — Tableau de bord complet</title>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Arabic:wght@400;500;700&display=swap"
-        rel="stylesheet">
-    <style>
-        :root {
-            --bg: #09090f;
-            --panel: #12121c;
-            --card: rgba(255, 255, 255, .04);
-            --border: rgba(255, 255, 255, .09);
-            --acc: #6366f1;
-            --t1: #f1f5f9;
-            --t2: #94a3b8;
-            --ok: #10b981;
-        }
+{% block title %}Tableau de Bord — FactuScan{% endblock %}
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--t1);
-            margin: 0;
-            padding: 3rem;
-        }
+{% block extra_css %}
+<style>
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem auto;
+        max-width: 1200px;
+        padding: 0 2rem;
+    }
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-            padding-bottom: 1.5rem;
-            border-bottom: 1px solid var(--border);
-        }
+    .stat-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--r3);
+        padding: 2rem;
+        text-align: center;
+    }
 
-        .header h1 {
-            margin: 0;
-            font-size: 1.8rem;
-            background: linear-gradient(135deg, #f1f5f9, #94a3b8);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+    .stat-card h3 {
+        color: var(--t2);
+        font-size: .85rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 1rem;
+    }
 
-        .btns {
-            display: flex;
-            gap: 1rem;
-        }
+    .stat-card p {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #fff;
+        margin: 0;
+    }
 
-        .btn {
-            background: var(--card);
-            border: 1px solid var(--border);
-            color: var(--t1);
-            padding: 0.6rem 1.2rem;
-            border-radius: 8px;
-            font-weight: 500;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.2s;
-        }
+    .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: var(--r3);
+        margin: 0 2rem 4rem;
+        overflow: hidden;
+    }
 
-        .btn:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
 
-        .btn.primary {
-            background: var(--acc);
-            border-color: var(--acc);
-            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
-        }
+    th {
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--t2);
+        text-align: left;
+        padding: 1.25rem 1.5rem;
+        font-size: .9rem;
+        border-bottom: 1px solid var(--border);
+    }
 
-        .btn.primary:hover {
-            background: #4f46e5;
-        }
+    td {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--border);
+        color: var(--t1);
+        font-size: .95rem;
+    }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2.5rem;
-        }
+    tr:last-child td {
+        border-bottom: none;
+    }
 
-        .stat-card {
-            background: var(--panel);
-            border: 1px solid var(--border);
-            padding: 1.5rem;
-            border-radius: 14px;
-            text-align: center;
-        }
+    .empty-state {
+        text-align: center;
+        padding: 4rem;
+        color: var(--t2);
+    }
+</style>
+{% endblock %}
 
-        .stat-card h3 {
-            margin: 0 0 0.5rem 0;
-            color: var(--t2);
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .stat-card p {
-            margin: 0;
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--ok);
-        }
-
-        .panel {
-            background: var(--panel);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 1.5rem;
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-        }
-
-        th,
-        td {
-            padding: 1rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        th {
-            color: var(--t2);
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 3rem;
-            color: var(--t2);
-        }
-
-        .badge-lang {
-            padding: 0.2rem 0.6rem;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            background: rgba(255, 255, 255, 0.05);
-        }
-    </style>
-</head>
-
-<body>
-
-    <div class="header">
-        <h1>📊 Tableau de Bord</h1>
-        <div class="btns">
-            <button class="btn" style="border-color:#06b6d4;color:#06b6d4" onclick="exportCSV()">📊 Exporter
-                CSV</button>
-            <a href="index.html" class="btn primary">➕ Nouvelle Facture</a>
-        </div>
+{% block content %}
+<div
+    style="max-width: 1200px; margin: 4rem auto 2rem; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1 style="font-size: 2.5rem; margin-bottom: 0.5rem;">Tableau de Bord</h1>
+        <p style="color: var(--t2);">Visualisez et gérez l'ensemble de vos factures traitées.</p>
     </div>
-
-    <div class="stats-grid">
-        <div class="stat-card">
-            <h3>Factures Traitées</h3>
-            <p id="stCount">0</p>
-        </div>
-        <div class="stat-card">
-            <h3>Moyenne par Facture</h3>
-            <p id="stAvg" style="color:#6366f1">0 DH</p>
-        </div>
-        <div class="stat-card">
-            <h3>Total TVA</h3>
-            <p id="stTva" style="color:#f59e0b">0.00 DH</p>
-        </div>
-        <div class="stat-card">
-            <h3>Total Général TTC</h3>
-            <p id="stTtc">0.00 DH</p>
-        </div>
+    <div style="display: flex; gap: 1rem;">
+        <button class="btn-secondary" onclick="exportCSV()"><i class="bi bi-download"></i> Exporter CSV</button>
+        <a href="/scanner" class="btn-primary"><i class="bi bi-plus-lg"></i> Nouvelle Facture</a>
     </div>
+</div>
 
-    <div class="panel">
-        <h3 style="margin-top:0; color:var(--t1)">Historique des Extractions</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Source Fichier</th>
-                    <th>Fournisseur</th>
-                    <th>N° Facture</th>
-                    <th>Date</th>
-                    <th>TVA</th>
-                    <th>TTC Total</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="tblBody">
-                <tr>
-                    <td colspan="7" class="empty-state">Chargement des données...</td>
-                </tr>
-            </tbody>
-        </table>
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Total Factures</h3>
+        <p id="stCount">0</p>
     </div>
+    <div class="stat-card">
+        <h3>Total TTC</h3>
+        <p id="stTtc" style="color: var(--ok);">0.00 DH</p>
+    </div>
+    <div class="stat-card">
+        <h3>Total TVA</h3>
+        <p id="stTva" style="color: var(--warn);">0.00 DH</p>
+    </div>
+</div>
 
-    <script>
-        // Charger les données du Local Storage (Synchronisé avec index.html)
-        let historyData = [];
-        try {
-            const raw = localStorage.getItem('fs-history');
-            if (raw) historyData = JSON.parse(raw);
-        } catch (e) {
-            console.error("Erreur lecture historique", e);
+<div class="panel">
+    <div
+        style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <h2 style="font-size: 1.2rem;">Historique des Extractions</h2>
+    </div>
+    <table id="historyTable">
+        <thead>
+            <tr>
+                <th>Fichier</th>
+                <th>Fournisseur</th>
+                <th>ICE</th>
+                <th>Date</th>
+                <th>Montant TTC</th>
+                <th style="text-align: right;">Action</th>
+            </tr>
+        </thead>
+        <tbody id="tblBody">
+            <tr>
+                <td colspan="6" class="empty-state">Chargement des données...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let historyData = JSON.parse(localStorage.getItem('fs-history') || '[]');
+
+    function renderDashboard() {
+        let sumTtc = 0;
+        let sumTva = 0;
+
+        historyData.forEach(d => {
+            sumTtc += (d.total_amount || 0);
+            sumTva += (d.vat_amount || 0);
+        });
+
+        document.getElementById('stCount').textContent = historyData.length;
+        document.getElementById('stTtc').textContent = sumTtc.toLocaleString('fr-MA', { minimumFractionDigits: 2 }) + ' DH';
+        document.getElementById('stTva').textContent = sumTva.toLocaleString('fr-MA', { minimumFractionDigits: 2 }) + ' DH';
+
+        const tbody = document.getElementById('tblBody');
+        if (historyData.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Aucune facture n'a encore été analysée. <a href="/scanner" style="color: var(--acc);">Commencer maintenant</a>.</td></tr>`;
+            return;
         }
 
-        function renderDashboard() {
-            let sumTtc = 0;
-            let sumTva = 0;
+        tbody.innerHTML = historyData.map((d, index) => `
+            <tr>
+                <td style="color: var(--t2); font-size: 0.8rem;">${d.filename || '—'}</td>
+                <td style="font-weight: 600;">${d.supplier || '—'}</td>
+                <td>${d.ice || '—'}</td>
+                <td>${d.invoice_date || '—'}</td>
+                <td style="color: var(--ok); font-weight: 700;">${d.total_amount ? d.total_amount.toFixed(2) + ' DH' : '—'}</td>
+                <td style="text-align: right;">
+                    <button class="btn-secondary" onclick="deleteHistoryItem(${index})" style="padding: 6px 12px; color: var(--err); border-color: rgba(239,68,68,0.2);">Supprimer</button>
+                </td>
+            </tr>
+        `).join('');
+    }
 
-            historyData.forEach(d => {
-                sumTtc += (d.total_amount || 0);
-                sumTva += (d.vat_amount || 0);
-            });
-
-            document.getElementById('stCount').textContent = historyData.length;
-            document.getElementById('stTtc').textContent = sumTtc.toFixed(2) + ' DH';
-            document.getElementById('stTva').textContent = sumTva.toFixed(2) + ' DH';
-            document.getElementById('stAvg').textContent = historyData.length ? (sumTtc / historyData.length).toFixed(2) + ' DH' : '0 DH';
-
-            const tbody = document.getElementById('tblBody');
-            if (historyData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Aucune facture n'a encore été analysée. Allez sur <i>Nouvelle Facture</i> pour commencer.</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = historyData.map((d, index) => {
-                // TVA : taux en % si HT disponible, sinon montant DH
-                const tvaA = parseFloat(d.vat_amount) || 0;
-                const htA = parseFloat(d.ht_amount) || 0;
-                const tvaTxt = tvaA > 0 && htA > 0
-                    ? (tvaA / htA * 100).toFixed(0) + '%'
-                    : (tvaA > 0 ? tvaA.toFixed(2) + ' DH' : '—');
-                const seqNum = historyData.length - index;
-                return `
-                    <tr>
-                        <td style="color:var(--t2);font-size:0.8rem">${d.filename || '—'}</td>
-                        <td style="font-weight:600">${d.supplier || '—'}</td>
-                        <td style="color:#6366f1;font-weight:700">${seqNum}</td>
-                        <td>${d.invoice_date || '—'}</td>
-                        <td style="color:#f59e0b">${tvaTxt}</td>
-                        <td style="color:var(--ok);font-weight:700">${d.total_amount ? parseFloat(d.total_amount).toFixed(2) + ' DH' : '—'}</td>
-                        <td><button class="btn" onclick="deleteItem(${index})" style="padding:0.4rem 0.8rem;font-size:0.8rem;border-color:#ef4444;color:#ef4444">🗑️ Supprimer</button></td>
-                    </tr>
-                `;
-            }).join('');
+    function deleteHistoryItem(idx) {
+        if (confirm("Supprimer cette facture ?")) {
+            historyData.splice(idx, 1);
+            localStorage.setItem('fs-history', JSON.stringify(historyData));
+            renderDashboard();
         }
+    }
 
-        function deleteItem(idx) {
-            if (confirm("Supprimer cette facture de l'historique ?")) {
-                historyData.splice(idx, 1);
-                localStorage.setItem('fs-history', JSON.stringify(historyData));
-                renderDashboard();
-            }
-        }
+    function exportCSV() {
+        if (historyData.length === 0) return;
+        const BOM = "\uFEFF";
+        let csv = BOM + 'Fournisseur;ICE;Date;Total TTC;Numéro;Fichier\n';
+        historyData.forEach(d => {
+            csv += `${d.supplier || ''};${d.ice || ''};${d.invoice_date || ''};${d.total_amount || 0};${d.invoice_number || ''};${d.filename || ''}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'export_factures.csv';
+        a.click();
+    }
 
-        /* EXPORT CSV BIEN STRUCTURE (Support UTF-8 Excel & Séparateur ;) */
-        function exportCSV() {
-            if (historyData.length === 0) { alert("Aucune donnée à exporter."); return; }
-
-            const BOM = "\uFEFF";
-            let csv = BOM;
-
-            const headers = ['N°', 'N° Facture', 'Date', 'Fournisseur / Client', 'ICE', 'TVA (DH)', 'Montant HT (DH)', 'Total TTC (DH)', 'Fichier source'];
-            csv += headers.join(';') + '\n';
-
-            historyData.forEach((d, i) => {
-                const ttc = Number(d.total_amount) || 0;
-                const tva = Number(d.vat_amount) || 0;
-                const ht = (tva > 0 && ttc > 0) ? (ttc - tva).toFixed(2) : '—';
-
-                const row = [
-                    i + 1,
-                    (d.invoice_number || '—'),
-                    (d.invoice_date || '—'),
-                    (d.supplier || '—'),
-                    (d.ice || '—'),
-                    tva > 0 ? tva.toFixed(2) : '—',
-                    ht,
-                    ttc > 0 ? ttc.toFixed(2) : '—',
-                    (d.filename || '—')
-                ];
-
-                csv += row.map(v => {
-                    let s = String(v);
-                    if (s.includes(';') || s.includes('"') || s.includes('\n')) {
-                        s = '"' + s.replace(/"/g, '""') + '"';
-                    }
-                    return s;
-                }).join(';') + '\n';
-            });
-
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const ts = new Date().toISOString().slice(0, 10);
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `FactuScan_Export_${ts}.csv`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        renderDashboard();
-    </script>
-</body>
-
-</html>
+    renderDashboard();
+</script>
+{% endblock %}

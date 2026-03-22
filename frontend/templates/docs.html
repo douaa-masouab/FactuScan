@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Documentation — FactuScan{% endblock %}
+
+{% block content %}
+<div style="max-width: 1000px; margin: 4rem auto; padding: 0 2rem;">
+    <h1 style="font-size: 3rem; margin-bottom: 2rem;">Guide d'Utilisation</h1>
+
+    <div style="display: grid; grid-template-columns: 250px 1fr; gap: 4rem;">
+        <aside style="position: sticky; top: 100px; height: fit-content;">
+            <ul style="list-style: none; display: flex; flex-direction: column; gap: 1rem;">
+                <li><a href="#intro" class="nav-link">Introduction</a></li>
+                <li><a href="#upload" class="nav-link">Chargement</a></li>
+                <li><a href="#analyze" class="nav-link">Analyse AI</a></li>
+                <li><a href="#export" class="nav-link">Exportation</a></li>
+                <li><a href="#voice" class="nav-link">Assistant Vocal</a></li>
+            </ul>
+        </aside>
+
+        <article style="color: var(--t2);">
+            <section id="intro" style="margin-bottom: 4rem;">
+                <h2 style="color: var(--t1); margin-bottom: 1rem;">Introduction</h2>
+                <p>FactuScan est un outil SaaS de traitement de factures. Il utilise l'OCR (Reconnaissance Optique de
+                    Caractères) pour lire le texte des images et des PDF, puis applique des algorithmes d'IA pour
+                    transformer ce texte en données structurées.</p>
+            </section>
+
+            <section id="upload" style="margin-bottom: 4rem;">
+                <h2 style="color: var(--t1); margin-bottom: 1rem;">Chargement des documents</h2>
+                <p>Vous pouvez glisser-déposer vos fichiers dans la zone prévue à cet effet sur le tableau de bord.
+                    Formats supportés :</p>
+                <ul style="margin: 1rem 0 1rem 1.5rem;">
+                    <li>Images : JPG, PNG, WEBP</li>
+                    <li>Documents : PDF</li>
+                </ul>
+                <p>Veillez à ce que la photo soit bien éclairée et le texte lisible pour une précision maximale.</p>
+            </section>
+
+            <section id="analyze" style="margin-bottom: 4rem;">
+                <h2 style="color: var(--t1); margin-bottom: 1rem;">Analyse par IA</h2>
+                <p>Une fois le fichier chargé, cliquez sur "Analyser". FactuScan va extraire :</p>
+                <ul style="margin: 1rem 0 1rem 1.5rem;">
+                    <li>Le nom du fournisseur</li>
+                    <li>L'Identifiant Commun de l'Entreprise (ICE)</li>
+                    <li>Le numéro et la date de la facture</li>
+                    <li>Les montants HT, TVA et TTC</li>
+                </ul>
+            </section>
+
+            <section id="export" style="margin-bottom: 4rem;">
+                <h2 style="color: var(--t1); margin-bottom: 1rem;">Exportation des données</h2>
+                <p>Toutes les factures traitées sont enregistrées localement dans votre historique. Vous pouvez exporter
+                    la liste complète au format CSV pour l'importer dans votre logiciel de comptabilité (Excel, Sage,
+                    Odoo, etc.).</p>
+            </section>
+
+            <section id="voice" style="margin-bottom: 4rem;">
+                <h2 style="color: var(--t1); margin-bottom: 1rem;">Assistant Vocal</h2>
+                <p>L'assistant vocal vous permet de naviguer et d'interroger vos données par la voix. Cliquez sur
+                    l'icône micro et demandez par exemple : "Quel est le total de mes dépenses ?" ou "Résumé des
+                    factures".</p>
+            </section>
+        </article>
+    </div>
+</div>
+{% endblock %}

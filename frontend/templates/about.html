@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}À Propos — FactuScan{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>Automatisez votre gestion de factures</h1>
+    <p>FactuScan est né d'une volonté de simplifier la comptabilité pour les entreprises marocaines. Notre technologie
+        combine OCR de pointe et Intelligence Artificielle pour une extraction de données ultra-précise.</p>
+</section>
+
+<div class="features">
+    <div class="feature-card">
+        <span class="feature-icon">🇲🇦</span>
+        <h3>Spécialisé Maroc</h3>
+        <p>Conçu spécifiquement pour les factures marocaines, gérant l'ICE, la TVA locale et les formats bilingues
+            Français/Arabe.</p>
+    </div>
+    <div class="feature-card">
+        <span class="feature-icon">🤖</span>
+        <h3>IA Générative</h3>
+        <p>Nous utilisons les derniers modèles Gemini pour comprendre le contexte des factures, même les plus complexes
+            ou manuscrites.</p>
+    </div>
+    <div class="feature-card">
+        <span class="feature-icon">⚡</span>
+        <h3>Rapidité Absolue</h3>
+        <p>Passez du papier au digital en moins de 3 secondes. Exportez vos données instantanément en CSV.</p>
+    </div>
+</div>
+
+<section style="padding: 4rem 2rem; max-width: 800px; margin: 0 auto; text-align: center;">
+    <h2>Notre Mission</h2>
+    <p style="color: var(--t2); margin-top: 1.5rem;">Libérer les entrepreneurs et comptables des tâches répétitives de
+        saisie de données pour leur permettre de se concentrer sur ce qui compte vraiment : la croissance de leur
+        entreprise.</p>
+    <a href="/dashboard" class="btn-primary" style="display: inline-block; margin-top: 2rem;">Essayer gratuitement</a>
+</section>
+{% endblock %}
