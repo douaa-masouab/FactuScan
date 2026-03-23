@@ -231,7 +231,9 @@ def extract_with_gemini_multimodal(filepath, mime_type):
                 
         return None, None
     except Exception as e:
-        print(f"[GLOBAL GEMINI ERROR] {e}")
+        import traceback
+        error_msg = traceback.format_exc()
+        print(f"[CRITICAL GEMINI ERROR]\n{error_msg}")
         return None, None
 
 def extract_text_from_image(image_path):
