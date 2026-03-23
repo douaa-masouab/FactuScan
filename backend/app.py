@@ -186,8 +186,14 @@ def extract_with_gemini_multimodal(filepath, mime_type):
         ]
         
         response = model.generate_content(content)
+        
+        # Check if response has content
+        if not response or not response.candidates:
+            print("[GEMINI ERROR] No candidates returned (Safety filter?)")
+            return None, None
+            
         t = response.text.strip()
-        print(f"[GEMINI RAW RESP] {t}")  # Debug print
+        print(f"[GEMINI SUCCESS] Response received ({len(t)} chars)")
         
         # Find JSON block even if there is surrounding text
         if "{" in t and "}" in t:
