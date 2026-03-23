@@ -487,9 +487,12 @@ def upload_file():
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
             
-            # Detect file type
+            # Detect file type and normalize
             try:
                 file_type = magic.from_file(filepath, mime=True)
+                # Map variations to standard types for Gemini
+                if 'jfif' in file_type or 'jpe' in file_type:
+                    file_type = "image/jpeg"
             except:
                 file_type = "image/jpeg"
                 
