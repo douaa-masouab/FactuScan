@@ -492,5 +492,51 @@
         t.classList.add('on');
         setTimeout(() => t.classList.remove('on'), 3000);
     }
+
+    function speakResults() {
+        if (!S.currentData) { showToast('❌ ' + ui('tNoData')); return; }
+        showToast('🔊 ' + ui('tReading'));
+
+        const d = S.currentData;
+        const textToSpeech = `Facture de ${d.supplier || 'fournisseur inconnu'}. Montant total de ${d.total_amount || 0} dirhams. Date de facture: ${d.invoice_date || 'inconnue'}.`;
+
+        fetch('/voice/synthesize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: textToSpeech })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.audio) {
+                    const audio = new Audio("data:audio/mp3;base64," + data.audio);
+                    audio.play();
+                } else { showToast('❌ Erreur de synthèse vocale'); }
+            }).catch(() => showToast('❌ Erreur de réseau vocale'));
+    }
+
+    function exportCSV() {
+        if (!S.currentData) { showToast('❌ ' + ui('tNoData')); return; }
+        const d = S.currentData;
+
+        // Add BOM to ensure Excel opens UTF-8 properly
+        let csvContent = "\uFEFFPropriété,Valeur\n";
+        csvContent += `Fournisseur,"${d.supplier || ''}"\n`;
+        csvContent += `ICE,"${d.ice || ''}"\n`;
+        csvContent += `Numéro de facture,"${d.invoice_number || ''}"\n`;
+        csvContent += `Date,"${d.invoice_date || ''}"\n`;
+        csvContent += `Montant HT,"${d.ht_amount || 0}"\n`;
+        csvContent += `Montant TVA,"${d.vat_amount || 0}"\n`;
+        csvContent += `Montant TTC,"${d.total_amount || 0}"\n`;
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `facture_${d.invoice_number || 'export'}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('✅ Export CSV téléchargé !');
+    }
 </script>
 {% endblock %}
