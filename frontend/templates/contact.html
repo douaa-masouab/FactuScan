@@ -7,26 +7,65 @@
     <p style="color: var(--t2); text-align: center; margin-bottom: 2rem;">Une question ? Un besoin spécifique pour votre
         entreprise ? Nous sommes à votre écoute.</p>
 
-    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-        <div
-            style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(255,255,255,0.02); border-radius: var(--r2);">
-            <i class="bi bi-envelope-at" style="font-size: 1.5rem; color: var(--acc);"></i>
-            <div>
-                <div style="font-weight: 600;">Email</div>
-                <div style="color: var(--t2);">contact@factuscan.ma</div>
+    <div style="display: grid; grid-template-columns: 1fr; gap: 2rem; margin-top: 2rem;">
+        <!-- Contact Info -->
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+            <div
+                style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(255,255,255,0.02); border-radius: var(--r2);">
+                <i class="bi bi-envelope-at" style="font-size: 1.5rem; color: var(--acc);"></i>
+                <div>
+                    <div style="font-weight: 600; font-size: 0.9rem;">Email</div>
+                    <div style="color: var(--t2); font-size: 0.85rem;">contact@factuscan.ma</div>
+                </div>
+            </div>
+            <div
+                style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(255,255,255,0.02); border-radius: var(--r2);">
+                <i class="bi bi-telephone" style="font-size: 1.5rem; color: var(--acc3);"></i>
+                <div>
+                    <div style="font-weight: 600; font-size: 0.9rem;">Téléphone</div>
+                    <div style="color: var(--t2); font-size: 0.85rem;">+212 5 22 41 41 41</div>
+                </div>
             </div>
         </div>
-        <div
-            style="display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(255,255,255,0.02); border-radius: var(--r2);">
-            <i class="bi bi-telephone" style="font-size: 1.5rem; color: var(--acc3);"></i>
-            <div>
-                <div style="font-weight: 600;">Téléphone</div>
-                <div style="color: var(--t2);">+212 5 22 41 41 41</div>
+
+        <!-- Contact Form -->
+        <div id="contactFormContainer">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.85rem; color: var(--t2); margin-bottom: 0.5rem;">Votre
+                    Nom</label>
+                <input type="text" placeholder="Entrez votre nom complet"
+                    style="width: 100%; padding: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: white; outline: none;">
             </div>
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; font-size: 0.85rem; color: var(--t2); margin-bottom: 0.5rem;">Votre
+                    Email</label>
+                <input type="email" placeholder="nom@exemple.com"
+                    style="width: 100%; padding: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: white; outline: none;">
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+                <label
+                    style="display: block; font-size: 0.85rem; color: var(--t2); margin-bottom: 0.5rem;">Message</label>
+                <textarea rows="4" placeholder="Comment pouvons-nous vous aider ?"
+                    style="width: 100%; padding: 0.8rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: white; outline: none; transition: 0.3s;"></textarea>
+            </div>
+            <button class="btn-primary w-100" onclick="sendMessage()">Envoyer le message</button>
+        </div>
+
+        <div id="successMsg"
+            style="display: none; text-align: center; padding: 2rem; border: 1px dashed var(--ok); border-radius: 12px; background: rgba(16, 185, 129, 0.05);">
+            <div style="font-size: 2rem; margin-bottom: 1rem;">✅</div>
+            <h3 style="color: var(--ok); margin-bottom: 0.5rem;">Message envoyé !</h3>
+            <p style="color: var(--t2); font-size: 0.9rem;">Merci pour votre message. Notre équipe reviendra vers vous
+                très prochainement par email.</p>
         </div>
     </div>
-
-    <a href="mailto:contact@factuscan.ma" class="btn-primary"
-        style="margin-top: 2rem; display: block; text-decoration: none; text-align: center;">Envoyer un message</a>
 </div>
+
+<script>
+    function sendMessage() {
+        // En mode démo, on simule l'envoi
+        document.getElementById('contactFormContainer').style.display = 'none';
+        document.getElementById('successMsg').style.display = 'block';
+    }
+</script>
 {% endblock %}
