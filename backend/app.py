@@ -169,25 +169,29 @@ def extract_with_gemini_multimodal(filepath, mime_type):
         return None, None
     
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
         # Open file as binary
         with open(filepath, "rb") as f:
             file_data = f.read()
             
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # Prepare content parts
+        prompt = """Act as a Moroccan accounting expert. Analyze the attached invoice image carefully.
+        Extract the following fields and return ONLY a valid JSON object:
+        {
+          "invoice_number": "number or dash if missing",
+          "invoice_date": "DD/MM/YYYY",
+          "supplier": "Company Name",
+          "ice": "15-digit number",
+          "ht_amount": float,
+          "vat_amount": float,
+          "total_amount": float,
+          "raw_text": "A full precise transcription of all visible text"
+        }
+        Be accurate with amounts. If a number has a comma, use a dot. Return null for fields you cannot find with high confidence."""
+        
         content = [
-            """Tu es un expert en comptabilité marocaine. 
-            Analyse cette image de facture et extrais les données suivantes en JSON :
-            - invoice_number: Numéro de facture
-            - invoice_date: Date (format JJ/MM/AAAA)
-            - supplier: Nom de l'entreprise/fournisseur
-            - ice: Identifiant Commun de l'Entreprise (15 chiffres)
-            - ht_amount: Montant Hors Taxe (nombre sans devise)
-            - vat_amount: Montant de la TVA (nombre sans devise)
-            - total_amount: Montant Total TTC (nombre sans devise)
-            - raw_text: Le texte complet brut lisible sur la facture
-            
-            Réponds UNIQUEMENT avec le bloc JSON. Si une info est absente, mets null.""",
+            prompt,
             {
                 "mime_type": mime_type,
                 "data": file_data
@@ -196,40 +200,38 @@ def extract_with_gemini_multimodal(filepath, mime_type):
         
         response = model.generate_content(content)
         
-        # Check if response has content
+        # Robust response checking
         if not response or not response.candidates:
-            print("[GEMINI ERROR] No candidates returned (Safety filter?)")
-            return None, None
-            
+             print("[GEMINI ERROR] No candidates.")
+             return None, None
+             
         t = response.text.strip()
-        print(f"[GEMINI SUCCESS] Response received ({len(t)} chars)")
+        print(f"[GEMINI RAW] {t[:100]}...") # Log start of response
         
-        # Find JSON block even if there is surrounding text
-        if "{" in t and "}" in t:
-            start = t.find("{")
-            end = t.rfind("}") + 1
-            json_text = t[start:end]
-            data = json.loads(json_text)
-            
-            raw_text = data.get('raw_text', '')
-            
-            # Clean up amounts to be float
-            for field in ['ht_amount', 'vat_amount', 'total_amount']:
-                val = data.get(field)
-                if val is not None:
-                    try:
-                        # Handle cases where model returns a string with comma or spaces
-                        if isinstance(val, str):
-                            val = val.replace(' ', '').replace(',', '.')
-                        data[field] = float(val)
-                    except ValueError:
-                        data[field] = None
-                        
-            # Return both data and the full text explanation
-            return data, raw_text
+        # Improved JSON Extraction from likely markdown blocks
+        clean_json = t.replace('```json', '').replace('```', '').strip()
+        if "{" in clean_json and "}" in clean_json:
+            try:
+                start = clean_json.find("{")
+                end = clean_json.rfind("}") + 1
+                data = json.loads(clean_json[start:end])
+                
+                # Format cleaning
+                for field in ['ht_amount', 'vat_amount', 'total_amount']:
+                    val = data.get(field)
+                    if isinstance(val, str):
+                        try:
+                            data[field] = float(val.replace(' ', '').replace(',', '.'))
+                        except:
+                            data[field] = None
+                
+                return data, data.get('raw_text', "Données extraites par Gemini AI.")
+            except Exception as e:
+                print(f"[JSON ERROR] {e}")
+                
         return None, None
     except Exception as e:
-        print(f"[Gemini Multimodal Error] {e}")
+        print(f"[GLOBAL GEMINI ERROR] {e}")
         return None, None
 
 def extract_text_from_image(image_path):
