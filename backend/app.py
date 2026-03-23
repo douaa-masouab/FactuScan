@@ -23,22 +23,23 @@ import google.generativeai as genai
 # Load configuration
 load_dotenv()
 
-# ULTRA-ROBUST API KEY DETECTION
-GOOGLE_API_KEY = None
-print("[DEBUG] Checking Environment Variables...")
-for k, v in os.environ.items():
-    # Look for anything that looks like a Google API Key
-    clean_k = k.upper().strip()
-    if clean_k in ['GOOGLE_API_KEY', 'CLÉ_API_GOOGLE', 'CLE_API_GOOGLE', 'GOOGLE_API_KEY_'] or 'CLÉ' in clean_k or 'GOOGLE_API' in clean_k:
-        if v and v.strip().startswith("AIza"):
-            GOOGLE_API_KEY = v.strip()
-            print(f"[SUCCESS] Found API Key in variable: {k}")
-            break
+# SUPER-ROBUST API KEY DETECTION
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY') or os.environ.get('CLÉ_API_GOOGLE') or os.environ.get('CLE_API_GOOGLE')
+
+if not GOOGLE_API_KEY:
+    # Scan all environment variables for anything looking like a Google Key
+    for k, v in os.environ.items():
+        if "GOOGLE" in k.upper() and ("KEY" in k.upper() or "API" in k.upper() or "CLÉ" in k.upper()):
+            if v and v.strip().startswith("AIza"):
+                GOOGLE_API_KEY = v.strip()
+                print(f"[FOUND] API Key in variable: {k}")
+                break
 
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
+    print(f"[IA ACTIVE] Clef API détectée : {GOOGLE_API_KEY[:4]}...{GOOGLE_API_KEY[-4:]}")
 else:
-    print("[WARNING] NO GOOGLE API KEY DETECTED! Ensure you have GOOGLE_API_KEY set in Railway.")
+    print("[CRITICAL] AUCUNE CLÉ API DÉTECTÉE ! Le scanner utilisera l'OCR local (très lent et imprécis).")
 
 # Initialize Flask app
 # Tell Flask where templates and static files live (frontend/ folder)
