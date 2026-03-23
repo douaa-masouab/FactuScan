@@ -660,6 +660,8 @@ def voice_command():
             total_ttc = float(session.query(Invoice).with_entities(func.coalesce(func.sum(Invoice.total_amount), 0.0)).scalar() or 0)
             total_vats = float(session.query(Invoice).with_entities(func.coalesce(func.sum(Invoice.vat_amount), 0.0)).scalar() or 0)
             
+        context = f"Tu es l'assistant de FactuScan. Tu aides à gérer les factures. Total TTC: {total_ttc} DH. L'utilisateur dit: {command}. Réponds brièvement."
+        
         if GOOGLE_API_KEY:
             model = genai.GenerativeModel('gemini-1.5-flash')
             response = model.generate_content(context)
