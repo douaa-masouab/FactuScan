@@ -680,7 +680,7 @@ def voice_command():
         """
 
         if GOOGLE_API_KEY:
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            model = genai.GenerativeModel('gemini-pro')
             response = model.generate_content(context)
             ai_response = response.text.strip()
         else:
