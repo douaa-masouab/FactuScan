@@ -657,30 +657,11 @@ def voice_command():
         
         if DB_AVAILABLE:
             invoice_count = session.query(Invoice).count()
-            total_ttc = session.query(Invoice).with_entities(func.coalesce(func.sum(Invoice.total_amount), 0)).scalar()
-            total_vats = session.query(Invoice).with_entities(func.coalesce(func.sum(Invoice.vat_amount), 0)).scalar()
+            total_ttc = float(session.query(Invoice).with_entities(func.coalesce(func.sum(Invoice.total_amount), 0.0)).scalar() or 0)
+            total_vats = float(session.query(Invoice).with_entities(func.coalesce(func.sum(Invoice.vat_amount), 0.0)).scalar() or 0)
             
-            # Get last 3 invoices for context
-            latest = session.query(Invoice).order_by(Invoice.created_at.desc()).limit(3).all()
-            for inv in latest:
-                recent_invoices.append(f"- Facture de {inv.supplier} pour {inv.total_amount} DH le {inv.invoice_date}")
-
-        context = f"""
-        Tu es l'assistant intelligent de FactuScan. Tu aides l'utilisateur à gérer ses factures.
-        Voici les données actuelles du compte :
-        - Nombre total de factures : {invoice_count}
-        - Montant total TTC : {total_ttc:.2f} dirhams
-        - Total TVA : {total_vats:.2f} dirhams
-        - Factures récentes : {", ".join(recent_invoices) if recent_invoices else "Aucune"}
-        
-        L'utilisateur dit : "{command}"
-        
-        Réponds de manière courte, amicale et professionnelle en français (ou en arabe si la question est en arabe). 
-        Si l'utilisateur demande quelque chose que tu ne peux pas faire (comme supprimer une facture par la voix), explique-lui poliment.
-        """
-
         if GOOGLE_API_KEY:
-            model = genai.GenerativeModel('gemini-pro')
+            model = genai.GenerativeModel('gemini-1.5-flash')
             response = model.generate_content(context)
             ai_response = response.text.strip()
         else:
