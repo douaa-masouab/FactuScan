@@ -497,10 +497,33 @@ def upload_file():
                 if invoice_data.get('total_amount') and invoice_data.get('vat_amount') and not invoice_data.get('ht_amount'):
                     invoice_data['ht_amount'] = invoice_data['total_amount'] - invoice_data['vat_amount']
             else:
-                # Fallback to local OCR + Regex + Gemini Text analysis
-                print("[INFO] Gemini Multimodal failed or key missing. Using local OCR fallback...")
+                # Final attempt to find the key at runtime (Hugging Face specific fix)
+                found_key = None
+                if not GOOGLE_API_KEY:
+                    print(f"[DEBUG] Re-scanning env at upload time. Available vars: {list(os.environ.keys())}")
+                    for k, v in os.environ.items():
+                        # Normalization to find any variation of Google API Key
+                        normalized_k = k.replace(' ', '_').upper()
+                        if (v and v.strip().startswith("AIza")) or "GOOGLE" in normalized_k:
+                            if v and v.strip().startswith("AIza"):
+                                found_key = v.strip()
+                                break
+                    
+                    if found_key:
+                        globals()['GOOGLE_API_KEY'] = found_key
+                        genai.configure(api_key=found_key)
+                        print(f"[SUCCESS] FOUND KEY DYNAMICALLY: {found_key[:4]}...")
+                        # RE-TRY MULTIMODAL immediately if we just found it!
+                        gemini_data, gemini_text = extract_with_gemini_multimodal(filepath, file_type)
+                        if gemini_data:
+                            invoice_data = gemini_data
+                            extracted_text = gemini_text or "[Extraction IA Directe]"
+                            # In this case skip the OCR block below
+                            # ... later
                 
-                if 'pdf' in file_type:
+                # If STILL no key and no data from dynamic attempt, only then do OCR
+                if not invoice_data:
+                    if 'pdf' in file_type:
                     extracted_text = extract_text_from_pdf(filepath)
                 else:  # Image file
                     extracted_text = extract_text_from_image(filepath)
