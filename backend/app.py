@@ -524,9 +524,9 @@ def upload_file():
                 # If STILL no key and no data from dynamic attempt, only then do OCR
                 if not invoice_data:
                     if 'pdf' in file_type:
-                    extracted_text = extract_text_from_pdf(filepath)
-                else:  # Image file
-                    extracted_text = extract_text_from_image(filepath)
+                        extracted_text = extract_text_from_pdf(filepath)
+                    else:  # Image file
+                        extracted_text = extract_text_from_image(filepath)
                 
                 if not extracted_text or extracted_text.startswith("[ERROR"):
                     return jsonify({"error": f"Échec de l'OCR local : {extracted_text or 'Mémoire insuffisante'}. Veuillez ajouter une clé GOOGLE_API_KEY pour utiliser l'IA."}), 422
