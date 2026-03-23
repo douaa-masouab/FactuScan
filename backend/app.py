@@ -24,30 +24,39 @@ import google.generativeai as genai
 load_dotenv()
 
 # FINAL-ULTRA-MEGA-ROBUST API KEY DETECTION
-GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY') or os.environ.get('CLÉ_API_GOOGLE') or os.environ.get('CLE_API_GOOGLE') or os.environ.get('Clé API Google')
+GOOGLE_API_KEY = None
 
-if not GOOGLE_API_KEY:
-    # Scan all environment variables and normalize names to find it
-    for k, v in os.environ.items():
-        # Remove spaces and convert to upper
-        normalized_k = k.replace(' ', '_').upper()
-        if "GOOGLE" in normalized_k and ("API" in normalized_k or "KEY" in normalized_k or "CLÉ" in normalized_k):
-            if v and v.strip().startswith("AIza"):
-                GOOGLE_API_KEY = v.strip()
-                print(f"[IA CONFIRMED] Found in variable: '{k}'")
-                break
+# Scan all environment variables and normalize to find the key
+for k, v in os.environ.items():
+    if not v or not isinstance(v, str): continue
+    
+    k_upper = k.replace(' ', '_').upper()
+    v_clean = v.strip().strip('"').strip("'")
+    
+    # Check 1: By Name
+    if ("GOOGLE" in k_upper and "API" in k_upper) or "CLÉ" in k_upper or "CLE" in k_upper:
+        if v_clean:
+            GOOGLE_API_KEY = v_clean
+            print(f"[FOUND] Key by name: {k}")
+            break
+            
+    # Check 2: By Value Content (AIza is the signature of Google API Keys)
+    if "AIza" in v_clean:
+        # Extract the key part (sometimes it might be part of a larger string)
+        match = re.search(r'(AIza[0-9A-Za-z-_]{35})', v_clean)
+        if match:
+            GOOGLE_API_KEY = match.group(1)
+            print(f"[FOUND] Key by signature in variable: {k}")
+            break
 
 if GOOGLE_API_KEY:
-    genai.configure(api_key=GOOGLE_API_KEY)
-    print(f"[SYSTEM] Gemini IA activée. Clef : {GOOGLE_API_KEY[:4]}...")
+    try:
+        genai.configure(api_key=GOOGLE_API_KEY)
+        print(f"[SYSTEM] Gemini IA activée. Clef : {GOOGLE_API_KEY[:4]}...")
+    except Exception as e:
+        print(f"[ERROR] failed to configure Gemini: {e}")
 else:
-    # Final check: search for the value directly in all env if startswith AIza
-    for k, v in os.environ.items():
-        if v and isinstance(v, str) and v.strip().startswith("AIza"):
-             GOOGLE_API_KEY = v.strip()
-             genai.configure(api_key=GOOGLE_API_KEY)
-             print(f"[SYSTEM] Clef détectée par son format dans variable: {k}")
-             break
+    print("[CRITICAL] AUCUNE CLÉ API DÉTECTÉE DANS L'ENVIRONNEMENT !")
 
 # Initialize Flask app
 # Tell Flask where templates and static files live (frontend/ folder)
