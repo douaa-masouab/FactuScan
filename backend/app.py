@@ -157,7 +157,7 @@ def allowed_file(filename):
 def extract_with_gemini_multimodal(filepath, mime_type):
     """Send image/PDF directly to Gemini to extract data using vision-language capabilities"""
     if not GOOGLE_API_KEY:
-        return None
+        return None, None
     
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
