@@ -182,18 +182,18 @@
         const BOM = "\uFEFF";
         let csv = BOM + 'N°;N° Facture;Date;Fournisseur;ICE;TVA (DH);Montant HT;Total TTC (DH);Fichier source\n';
 
-        // Exporter par ordre chronologique (du plus ancien au plus récent) = l'inverse de l'affichage
-        const chronologicalData = [...historyData].reverse();
+        // Ordre chronologique (La plus ancienne = N° 1)
+        const exportData = [...historyData].reverse();
 
-        chronologicalData.forEach((d, index) => {
+        exportData.forEach((d, index) => {
             csv += `${index + 1};${d.invoice_number || ''};${d.invoice_date || ''};${d.supplier || ''};${d.ice || ''};${d.vat_amount || 0};${d.ht_amount || 0};${d.total_amount || 0};${d.filename || ''}\n`;
         });
-
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'export_factures.csv';
+        const timestamp = new Date().toISOString().slice(0, 10);
+        a.download = `FactuScan_Historique_${timestamp}.csv`;
         a.click();
     }
 
