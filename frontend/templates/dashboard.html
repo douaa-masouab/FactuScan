@@ -110,23 +110,25 @@
         style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
         <h2 style="font-size: 1.2rem;">Historique des Extractions</h2>
     </div>
-    <table id="historyTable">
-        <thead>
-            <tr>
-                <th>Fichier</th>
-                <th>Fournisseur</th>
-                <th>ICE</th>
-                <th>Date</th>
-                <th>Montant TTC</th>
-                <th style="text-align: right;">Action</th>
-            </tr>
-        </thead>
-        <tbody id="tblBody">
-            <tr>
-                <td colspan="6" class="empty-state">Chargement des données...</td>
-            </tr>
-        </tbody>
-    </table>
+    <div style="width: 100%; overflow-x: auto;">
+        <table id="historyTable">
+            <thead>
+                <tr>
+                    <th>Fichier</th>
+                    <th>Fournisseur</th>
+                    <th>ICE</th>
+                    <th>Date</th>
+                    <th>Montant TTC</th>
+                    <th style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody id="tblBody">
+                <tr>
+                    <td colspan="6" class="empty-state">Chargement des données...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}
 
@@ -179,9 +181,14 @@
         if (historyData.length === 0) return;
         const BOM = "\uFEFF";
         let csv = BOM + 'N°;N° Facture;Date;Fournisseur;ICE;TVA (DH);Montant HT;Total TTC (DH);Fichier source\n';
-        historyData.forEach((d, index) => {
+
+        // Exporter par ordre chronologique (du plus ancien au plus récent) = l'inverse de l'affichage
+        const chronologicalData = [...historyData].reverse();
+
+        chronologicalData.forEach((d, index) => {
             csv += `${index + 1};${d.invoice_number || ''};${d.invoice_date || ''};${d.supplier || ''};${d.ice || ''};${d.vat_amount || 0};${d.ht_amount || 0};${d.total_amount || 0};${d.filename || ''}\n`;
         });
+
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
