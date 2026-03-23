@@ -641,7 +641,7 @@ def delete_invoice(invoice_id):
 
 @app.route('/voice/command', methods=['POST'])
 def voice_command():
-    """Process voice command using Gemini for natural language understanding"""
+    """Process voice command manually or with AI"""
     data = request.json
     command = data.get('command', '')
     
@@ -649,33 +649,43 @@ def voice_command():
         return jsonify({"response": "Je n'ai pas entendu votre commande."})
 
     try:
-        # Get context from database to feed Gemini
-        total_ttc = 0
-        total_vats = 0
+        # Pre-process command
+        cmd_lower = command.lower()
+        
+        # 1. Get current stats for context (always attempt)
+        total_ttc = 0.0
         invoice_count = 0
-        recent_invoices = []
-        
         if DB_AVAILABLE:
-            invoice_count = session.query(Invoice).count()
-            total_ttc = float(session.query(Invoice).with_entities(func.coalesce(func.sum(Invoice.total_amount), 0.0)).scalar() or 0)
-            total_vats = float(session.query(Invoice).with_entities(func.coalesce(func.sum(Invoice.vat_amount), 0.0)).scalar() or 0)
-            
-        context = f"Tu es l'assistant de FactuScan. Tu aides à gérer les factures. Total TTC: {total_ttc} DH. L'utilisateur dit: {command}. Réponds brièvement."
-        
-        if GOOGLE_API_KEY:
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            response = model.generate_content(context)
-            ai_response = response.text.strip()
-        else:
-            ai_response = "Désolé, l'IA n'est pas configurée pour répondre de manière fluide. Veuillez vérifier votre clé API."
+            try:
+                invoice_count = session.query(Invoice).count()
+                total_ttc = float(session.query(Invoice).with_entities(func.coalesce(func.sum(Invoice.total_amount), 0.0)).scalar() or 0)
+            except:
+                pass
 
-        return jsonify({"response": ai_response})
+        # 2. KEYWORD FALLBACK (Works without AI)
+        if "total" in cmd_lower or "combien" in cmd_lower or "montant" in cmd_lower:
+            return jsonify({"response": f"D'après vos données, le montant total des factures est de {total_ttc:.2f} dirhams pour {invoice_count} factures."})
+        
+        if "résumé" in cmd_lower or "qu'est-ce que j'ai" in cmd_lower or "nombre" in cmd_lower:
+            return jsonify({"response": f"Vous avez actuellement {invoice_count} factures enregistrées dans votre tableau de bord FactuScan."})
+
+        if "aide" in cmd_lower or "comment" in cmd_lower or "peux-tu" in cmd_lower:
+            return jsonify({"response": "Je peux vous donner le total de vos dépenses, le nombre de vos factures, ou lire à haute voix les résultats d'un scan. Dites 'total' ou 'résumé'."})
+
+        # 3. SMART AI FALLBACK (If keywords don't match)
+        if GOOGLE_API_KEY:
+            try:
+                context = f"Tu es l'assistant FactuScan. Tu aides avec les factures. Total: {total_ttc} DH. Invoices: {invoice_count}. Commande: {command}. Réponds court."
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content(context)
+                return jsonify({"response": response.text.strip()})
+            except Exception as e:
+                return jsonify({"response": f"Je comprends la commande '{command}', mais j'ai une erreur réseau. Le total est de {total_ttc} DH."})
+
+        return jsonify({"response": f"Désolé, l'intelligence artificielle n'est pas configurée, mais je peux vous dire que vous avez {invoice_count} factures pour un total de {total_ttc:.2f} DH."})
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        print(f"[Voice AI Error] {str(e)}")
-        return jsonify({"response": f"Désolé, j'ai rencontré une erreur en traitant votre demande. ({str(e)})"})
+        return jsonify({"response": "Désolé, l'assistant est temporairement indisponible."})
 
 @app.route('/voice/synthesize', methods=['POST'])
 def synthesize_speech():
