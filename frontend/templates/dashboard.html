@@ -178,9 +178,9 @@
     function exportCSV() {
         if (historyData.length === 0) return;
         const BOM = "\uFEFF";
-        let csv = BOM + 'Fournisseur;ICE;Date;Total TTC;Numéro;Fichier\n';
-        historyData.forEach(d => {
-            csv += `${d.supplier || ''};${d.ice || ''};${d.invoice_date || ''};${d.total_amount || 0};${d.invoice_number || ''};${d.filename || ''}\n`;
+        let csv = BOM + 'N°;N° Facture;Date;Fournisseur;ICE;TVA (DH);Montant HT;Total TTC (DH);Fichier source\n';
+        historyData.forEach((d, index) => {
+            csv += `${index + 1};${d.invoice_number || ''};${d.invoice_date || ''};${d.supplier || ''};${d.ice || ''};${d.vat_amount || 0};${d.ht_amount || 0};${d.total_amount || 0};${d.filename || ''}\n`;
         });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
