@@ -353,7 +353,7 @@ def extract_with_gemini(text):
         return None
     
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         prompt = f"""
         Extract invoice data from the following text in JSON format:
         Text: {text}
