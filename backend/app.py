@@ -57,35 +57,52 @@ app.config['SECRET_KEY'] = os.urandom(24)
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Database setup
+# Database configuration and connection
 DB_HOST = os.environ.get('DB_HOST', 'localhost')
 DB_PORT = os.environ.get('DB_PORT', '3306')
 DB_USER = os.environ.get('DB_USER', 'factuscan_user')
 DB_PASSWORD = os.environ.get('DB_PASSWORD', 'secure_password')
 DB_NAME = os.environ.get('DB_NAME', 'factuscan')
 
-DATABASE_URI = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# Attempt connection with real test
+DB_AVAILABLE = False
+engine = None
+Session = None
 Base = declarative_base()
 
-try:
-    engine = create_engine(DATABASE_URI, pool_pre_ping=True, connect_args={'connect_timeout': 5})
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    DB_AVAILABLE = True
-except Exception as e:
-    print(f"[WARNING] MySQL unavailable ({e}). Falling back to SQLite...")
+def init_db():
+    global DB_AVAILABLE, engine, Session
+    # 1. Try MySQL (if not on a localhost default that likely fails)
+    if DB_HOST != 'localhost' or os.environ.get('MYSQL_URL'):
+        try:
+            db_uri = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+            temp_engine = create_engine(db_uri, pool_pre_ping=True, connect_args={'connect_timeout': 3})
+            with temp_engine.connect() as conn:
+                pass
+            engine = temp_engine
+            Session = sessionmaker(bind=engine)
+            DB_AVAILABLE = True
+            print("[SUCCESS] MySQL Database connected.")
+            return
+        except Exception as e:
+            print(f"[WARNING] MySQL connection failed ({e}).")
+
+    # 2. Fallback to SQLite
     try:
-        # Fallback to local SQLite if MySQL fails
-        DATABASE_URI = "sqlite:///factuscan.db"
-        engine = create_engine(DATABASE_URI)
+        db_uri = "sqlite:///factuscan.db"
+        engine = create_engine(db_uri, connect_args={'check_same_thread': False})
         Session = sessionmaker(bind=engine)
-        session = Session()
+        with engine.connect() as conn:
+            pass
         DB_AVAILABLE = True
-    except Exception as e2:
-        print(f"[ERROR] SQLite fallback failed: {e2}")
-        engine = None
-        session = None
+        print("[INFO] Using SQLite local database.")
+    except Exception as e:
+        print(f"[ERROR] All fallbacks failed: {e}")
         DB_AVAILABLE = False
+
+init_db()
+# Create a global session for simple context
+session = Session() if Session else None
 
 # Database Models
 class Invoice(Base):
