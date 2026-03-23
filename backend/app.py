@@ -134,7 +134,7 @@ def extract_with_gemini_multimodal(filepath, mime_type):
         return None
     
     try:
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         # Open file as binary
         with open(filepath, "rb") as f:
@@ -663,7 +663,7 @@ def voice_command():
         """
 
         if GOOGLE_API_KEY:
-            model = genai.GenerativeModel('gemini-2.0-flash')
+            model = genai.GenerativeModel('gemini-1.5-flash')
             response = model.generate_content(context)
             ai_response = response.text.strip()
         else:
@@ -672,8 +672,10 @@ def voice_command():
         return jsonify({"response": ai_response})
 
     except Exception as e:
-        print(f"[Voice AI Error] {e}")
-        return jsonify({"response": "Désolé, j'ai rencontré une erreur en traitant votre demande."})
+        import traceback
+        traceback.print_exc()
+        print(f"[Voice AI Error] {str(e)}")
+        return jsonify({"response": f"Désolé, j'ai rencontré une erreur en traitant votre demande. ({str(e)})"})
 
 @app.route('/voice/synthesize', methods=['POST'])
 def synthesize_speech():
