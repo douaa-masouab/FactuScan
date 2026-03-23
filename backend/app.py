@@ -23,23 +23,31 @@ import google.generativeai as genai
 # Load configuration
 load_dotenv()
 
-# SUPER-ROBUST API KEY DETECTION
-GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY') or os.environ.get('CLÉ_API_GOOGLE') or os.environ.get('CLE_API_GOOGLE')
+# FINAL-ULTRA-MEGA-ROBUST API KEY DETECTION
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY') or os.environ.get('CLÉ_API_GOOGLE') or os.environ.get('CLE_API_GOOGLE') or os.environ.get('Clé API Google')
 
 if not GOOGLE_API_KEY:
-    # Scan all environment variables for anything looking like a Google Key
+    # Scan all environment variables and normalize names to find it
     for k, v in os.environ.items():
-        if "GOOGLE" in k.upper() and ("KEY" in k.upper() or "API" in k.upper() or "CLÉ" in k.upper()):
+        # Remove spaces and convert to upper
+        normalized_k = k.replace(' ', '_').upper()
+        if "GOOGLE" in normalized_k and ("API" in normalized_k or "KEY" in normalized_k or "CLÉ" in normalized_k):
             if v and v.strip().startswith("AIza"):
                 GOOGLE_API_KEY = v.strip()
-                print(f"[FOUND] API Key in variable: {k}")
+                print(f"[IA CONFIRMED] Found in variable: '{k}'")
                 break
 
 if GOOGLE_API_KEY:
     genai.configure(api_key=GOOGLE_API_KEY)
-    print(f"[IA ACTIVE] Clef API détectée : {GOOGLE_API_KEY[:4]}...{GOOGLE_API_KEY[-4:]}")
+    print(f"[SYSTEM] Gemini IA activée. Clef : {GOOGLE_API_KEY[:4]}...")
 else:
-    print("[CRITICAL] AUCUNE CLÉ API DÉTECTÉE ! Le scanner utilisera l'OCR local (très lent et imprécis).")
+    # Final check: search for the value directly in all env if startswith AIza
+    for k, v in os.environ.items():
+        if v and isinstance(v, str) and v.strip().startswith("AIza"):
+             GOOGLE_API_KEY = v.strip()
+             genai.configure(api_key=GOOGLE_API_KEY)
+             print(f"[SYSTEM] Clef détectée par son format dans variable: {k}")
+             break
 
 # Initialize Flask app
 # Tell Flask where templates and static files live (frontend/ folder)
