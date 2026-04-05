@@ -7,3 +7,4 @@ mysql_data/
 .vscode/
 .idea/
 *.log
+factuscan.db

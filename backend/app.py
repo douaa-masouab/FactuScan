@@ -24,39 +24,33 @@ import google.generativeai as genai
 load_dotenv()
 
 # FINAL-ULTRA-MEGA-ROBUST API KEY DETECTION
-GOOGLE_API_KEY = None
+GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
+OCR_SPACE_API_KEY = os.environ.get('OCR_SPACE_API_KEY')
 
-# Scan all environment variables and normalize to find the key
-for k, v in os.environ.items():
-    if not v or not isinstance(v, str): continue
-    
-    k_upper = k.replace(' ', '_').upper()
-    v_clean = v.strip().strip('"').strip("'")
-    
-    # Check 1: By Name
-    if ("GOOGLE" in k_upper and "API" in k_upper) or "CLÉ" in k_upper or "CLE" in k_upper:
-        if v_clean:
-            GOOGLE_API_KEY = v_clean
-            print(f"[FOUND] Key by name: {k}")
-            break
-            
-    # Check 2: By Value Content (AIza is the signature of Google API Keys)
-    if "AIza" in v_clean:
-        # Extract the key part (sometimes it might be part of a larger string)
-        match = re.search(r'(AIza[0-9A-Za-z-_]{35})', v_clean)
-        if match:
-            GOOGLE_API_KEY = match.group(1)
-            print(f"[FOUND] Key by signature in variable: {k}")
-            break
+# Scan all environment variables if not found
+if not GOOGLE_API_KEY or not OCR_SPACE_API_KEY:
+    for k, v in os.environ.items():
+        if not v or not isinstance(v, str): continue
+        k_upper = k.replace(' ', '_').upper()
+        v_clean = v.strip().strip('"').strip("'")
+        
+        if not GOOGLE_API_KEY:
+            if ("GOOGLE" in k_upper and "API" in k_upper) or "AIza" in v_clean:
+                GOOGLE_API_KEY = v_clean
+        
+        if not OCR_SPACE_API_KEY:
+            if "OCR_SPACE" in k_upper or (len(v_clean) == 15 and v_clean.isalnum() and v_clean.startswith('K')):
+                OCR_SPACE_API_KEY = v_clean
 
 if GOOGLE_API_KEY:
     try:
         genai.configure(api_key=GOOGLE_API_KEY)
-        print(f"[SYSTEM] Gemini IA activée. Clef : {GOOGLE_API_KEY[:4]}...")
+        print(f"[SYSTEM] Gemini IA activée.")
     except Exception as e:
         print(f"[ERROR] failed to configure Gemini: {e}")
-else:
-    print("[CRITICAL] AUCUNE CLÉ API DÉTECTÉE DANS L'ENVIRONNEMENT !")
+
+if OCR_SPACE_API_KEY:
+    print(f"[SYSTEM] OCR.Space activé.")
 
 # Initialize Flask app
 # Tell Flask where templates and static files live (frontend/ folder)
@@ -269,8 +263,74 @@ def extract_text_from_pdf(pdf_path):
         print(f"Error extracting text from PDF: {error_msg}")
         return f"[ERROR PDF: {error_msg}]"
 
+import requests # Ajouté pour OCR.Space et Z.IA
+
+def extract_with_zai(filepath):
+    """Extraction avec Z.IA (BigModel GLM-OCR) - Très précis"""
+    zai_key = os.environ.get('Z_AI_API_KEY')
+    if not zai_key:
+        return None
+    
+    try:
+        print("[Z.IA] Tentative d'extraction...")
+        headers = {"Authorization": f"Bearer {zai_key}"}
+        
+        # 1. Upload
+        with open(filepath, "rb") as f:
+            files = {'file': (os.path.basename(filepath), f, 'application/octet-stream')}
+            r_up = requests.post("https://open.bigmodel.cn/api/paas/v4/files", 
+                               headers=headers, files=files, data={'purpose': 'agent'}, timeout=30)
+        
+        if r_up.status_code != 200: return None
+        file_id = r_up.json().get("id")
+        
+        # 2. Parse
+        payload = {"model": "glm-ocr", "file": file_id}
+        response = requests.post("https://open.bigmodel.cn/api/paas/v4/layout_parsing", 
+                               headers=headers, json=payload, timeout=60)
+        
+        if response.status_code == 200:
+            return response.json().get("content", "")
+    except Exception as e:
+        print(f"[Z.IA ERROR] {e}")
+    return None
+
+def extract_text_with_ocr_space(filepath):
+    """Extract text using OCR.Space API (Powerful Free Cloud OCR)"""
+    ocr_key = os.environ.get('OCR_SPACE_API_KEY')
+    if not ocr_key:
+        return None
+    
+    try:
+        print(f"[OCR.SPACE] Traitement de {filepath}...")
+        payload = {
+            'apikey': ocr_key,
+            'language': 'fre',
+            'isOverlayRequired': False,
+            'FileType': 'Auto',
+            'isTable': True,
+            'OCREngine': '2',
+        }
+        
+        with open(filepath, 'rb') as f:
+            r = requests.post('https://api.ocr.space/parse/image',
+                            files={'filename': f},
+                            data=payload,
+                            timeout=60)
+            
+        result = r.json()
+        if result.get('OCRExitCode') == 1:
+            parsed_results = result.get('ParsedResults', [])
+            if parsed_results:
+                return parsed_results[0].get('ParsedText', '')
+        
+        return None
+    except Exception as e:
+        print(f"[OCR.SPACE ERROR] {e}")
+        return None
+
 def extract_invoice_data(text):
-    """Extract invoice data from OCR text using regex patterns"""
+    """Extract invoice data from OCR text using regex patterns (Robust Moroccan Mode)"""
     data = {
         'invoice_number': None,
         'invoice_date': None,
@@ -281,128 +341,204 @@ def extract_invoice_data(text):
         'total_amount': None
     }
     
-    # Invoice number patterns (French)
-    # Use negative lookahead to avoid matching 'date', 'tva', 'total'
+    # 1. ICE Detection (MUST BE 15 digits)
+    ice_match = re.search(r'ICE\s*[:#]?\s*([0-9]{15})', text, re.IGNORECASE)
+    if not ice_match:
+        # Fallback: find any 15-digit number that isn't already assigned
+        ice_match = re.search(r'([0-9]{15})', text)
+        
+    if ice_match:
+        data['ice'] = ice_match.group(1)
+
+    # 2. Invoice number patterns (Restricted to digits and dashes)
     invoice_num_patterns = [
-        r'facture\s*[:#]?\s*(?!date|tva|total)([A-Z0-9-/]+)',
-        r'facture\s*n[°°]\s*(?!date|tva|total)([A-Z0-9-/]+)',
-        r'N[°°]\s*facture\s*[:#]?\s*(?!date|tva|total)([A-Z0-9-/]+)'
+        r'N[o.]\s*[:]?\s*([0-9-]+)',
+        r'facture\s*[:#-]?\s*([0-9-]{4,})',
+        r'invoice\s*[:#-]?\s*([0-9-]{4,})',
+        r'N[°°]\s*facture\s*[:#]?\s*([0-9-]+)'
     ]
     
     for pattern in invoice_num_patterns:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
-            data['invoice_number'] = match.group(1).strip()
-            break
+            val = match.group(1).strip()
+            # If length is reasonable for a number
+            if 3 < len(val) < 20:
+                data['invoice_number'] = val
+                break
             
     if not data['invoice_number']:
         data['invoice_number'] = '_'
     
-    # Date patterns
+    # 3. Date patterns (plus robustes)
     date_patterns = [
+        r'date\s*[:#]?\s*(\d{4}[/-]\d{1,2}[/-]\d{1,2})',
         r'date\s*[:#]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
-        r'date\s*[:#]?\s*(\d{1,2}\s*\w+\s*\d{2,4})'
+        r'Le\s*(\d{1,2}\s*[a-zéA-Z]+\s*\d{2,4})', 
+        r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
+        r'(\d{4}[/-]\d{1,2}[/-]\d{1,2})'
     ]
     
     for pattern in date_patterns:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
-            data['invoice_date'] = match.group(1)
-            break
+            found_date = match.group(1).strip()
+            # On vérifie que ce n'est pas juste l'année (4 chiffres seuls)
+            if len(found_date) >= 8:
+                data['invoice_date'] = found_date
+                break
     
-    # Supplier patterns
-    supplier_patterns = [
-        r'fournisseur\s*[:#]?\s*([A-Za-z0-9\s&\'-]+)',
-        r'soci[ée]t[ée]\s*[:#]?\s*([A-Za-z0-9\s&\'-]+)'
-    ]
+    # 4. Supplier patterns
+    if "REDAL" in text.upper(): data['supplier'] = "REDAL"
+    elif "LYDEC" in text.upper(): data['supplier'] = "LYDEC"
+    elif "IAM" in text.upper() or "TELECOM" in text.upper(): data['supplier'] = "MAROC TELECOM"
+    elif "MAROC" in text.upper() and "TELECOM" in text.upper(): data['supplier'] = "MAROC TELECOM"
+    else:
+        supplier_patterns = [
+            r'fournisseur\s*[:#]?\s*([A-Za-z.\s]{3,})',
+            r'soci[ée]t[ée]\s*([A-Za-z.\s]{3,})'
+        ]
+        for pattern in supplier_patterns:
+            match = re.search(pattern, text, re.IGNORECASE)
+            if match:
+                name = match.group(1).strip()
+                if len(name) > 3:
+                    data['supplier'] = name
+                    break
     
-    for pattern in supplier_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            data['supplier'] = match.group(1).strip()
-            break
-    
-    # ICE (Moroccan tax ID) patterns
-    ice_patterns = [
-        r'ICE\s*[:#]?\s*([0-9]{15})',
-        r'Identifiant\s*Commun\s*[:#]?\s*([0-9]{15})'
-    ]
-    
-    for pattern in ice_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            data['ice'] = match.group(1)
-            break
-    
-    # VAT amount patterns
-    vat_patterns = [
-        r'TVA\s*[:#]?\s*([0-9.,]+\s*DH)',
-        r'Taxe\s*sur\s*la\s*valeur\s*ajout[ée]e\s*[:#]?\s*([0-9.,]+\s*DH)'
-    ]
-    
-    for pattern in vat_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            # Extract numeric value
-            vat_value = re.search(r'([0-9.,]+)', match.group(1))
-            if vat_value:
-                # Replace comma with dot for float conversion
-                data['vat_amount'] = float(vat_value.group(1).replace(',', '.'))
-            break
-    
-    # Total amount patterns
+    # 5. Amount/Total patterns (Flexible numbers)
+    def clean_amount(s):
+        if not s: return None
+        # Remove everything except numbers, dot and comma
+        val = re.sub(r'[^0-9.,]', '', s).replace(',', '.')
+        # Handle cases with multiple dots (e.g. 1.000.00)
+        if val.count('.') > 1:
+            parts = val.split('.')
+            val = "".join(parts[:-1]) + "." + parts[-1]
+        try:
+            return float(val)
+        except:
+            return None
+
+    # Search for TTC Total
     total_patterns = [
-        r'Total\s*[:#]?\s*([0-9.,]+\s*DH)',
-        r'Montant\s*total\s*[:#]?\s*([0-9.,]+\s*DH)'
+        r'TOTAL\s+A\s+PAYER\s*[:#]?\s*([0-9.,\s]{1,15})',
+        r'SOMME\s+A\s+PAYER\s*[:#]?\s*([0-9.,\s]{1,15})',
+        r'total\s*ttc\s*[:#]?\s*([0-9.,\s]{1,15})',
+        r'ttc\s*[:#]?\s*([0-9.,\s]{1,15})',
+        r'net\s*a\s*payer\s*[:#]?\s*([0-9.,\s]{1,15})',
+        r'total\s*[:#]?\s*([0-9.,\s]{4,15})' 
     ]
-    
-    for pattern in total_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
+    for p in total_patterns:
+        match = re.search(p, text, re.IGNORECASE)
         if match:
-            # Extract numeric value
-            total_value = re.search(r'([0-9.,]+)', match.group(1))
-            if total_value:
-                # Replace comma with dot for float conversion
-                data['total_amount'] = float(total_value.group(1).replace(',', '.'))
-            break
-            
-    # Estimate HT if missing but TVA and Total exist
-    try:
-        if data.get('total_amount') and data.get('vat_amount') and not data.get('ht_amount'):
-            data['ht_amount'] = data['total_amount'] - data['vat_amount']
-    except:
-        pass
+            # Capturer uniquement la partie numérique au début du groupe pour éviter de baver sur la suite
+            val_str = match.group(1).strip()
+            num_match = re.search(r'^([0-9\s.,]+)', val_str)
+            if num_match:
+                val = clean_amount(num_match.group(1))
+                if val and val > 1: 
+                    data['total_amount'] = val
+                    break
+
+    # Search for HT Subtotal
+    ht_patterns = [
+        r'SOMME\s+HORS\s+TAXES\s*[:#]?\s*([0-9.,\s]+)',
+        r'total\s*ht\s*[:#]?\s*([0-9.,\s]+)',
+        r'ht\s*[:#]?\s*([0-9.,\s]+)',
+        r'sous-total\s*[:#]?\s*([0-9.,\s]+)',
+        r'montant\s*ht\s*[:#]?\s*([0-9.,\s]+)',
+        r'MNT\s*HT\s*[:#]?\s*([0-9.,\s]+)'
+    ]
+    for p in ht_patterns:
+        match = re.search(p, text, re.IGNORECASE)
+        if match:
+            val = clean_amount(match.group(1))
+            if val:
+                data['ht_amount'] = val
+                break
+    
+    # LAST RESORT: Find the largest number in the text
+    if not data.get('total_amount'):
+        # Look for patterns like "1 200,00" or "1200.00" followed by DH/MAD or at end of strings
+        all_numbers = re.findall(r'([0-9]{1,3}(?:\s?[0-9]{3})*[.,]\s?[0-9]{2})\s*(?:DH|MAD|&|€|\b|$)', text)
+        if all_numbers:
+            amounts = [clean_amount(n) for n in all_numbers]
+            valid_amounts = [a for a in amounts if a and a > 10]
+            if valid_amounts:
+                data['total_amount'] = max(valid_amounts)
+
+    # VAT (Try to catch amount, not rate)
+    # If 20% is found, keep it as rate, but we need amount
+    vat_patterns = [
+        r'montant\s*tva\s*[:#]?\s*([0-9.,\s]+)',
+        r'tva\s*[:#]?\s*([0-9.,\s]{2,})\s*(?!%)' # Match digits NOT followed by %
+    ]
+    for p in vat_patterns:
+        match = re.search(p, text, re.IGNORECASE)
+        if match:
+            # Check if it's followed by % in the nearby text
+            if '%' not in text[match.end():match.end()+5]:
+                val = clean_amount(match.group(1))
+                if val:
+                    data['vat_amount'] = val
+                    break
+
+    # SMART RECOVERY/CALCULATION
+    # If we have Total and TVA rate is found elsewhere
+    if data.get('total_amount') and not data.get('vat_amount'):
+        match_rate = re.search(r'(\d{1,2})\s*%', text)
+        if match_rate:
+            rate = float(match_rate.group(1))
+            # Calculate HT and TVA: TTC = HT * (1 + rate/100)
+            data['ht_amount'] = round(data['total_amount'] / (1 + rate/100), 2)
+            data['vat_amount'] = round(data['total_amount'] - data['ht_amount'], 2)
+    
+    # Simple subtraction if possible
+    if data.get('total_amount') and data.get('ht_amount') and not data.get('vat_amount'):
+        data['vat_amount'] = round(data['total_amount'] - data['ht_amount'], 2)
+    elif data.get('total_amount') and data.get('vat_amount') and not data.get('ht_amount'):
+        data['ht_amount'] = round(data['total_amount'] - data['vat_amount'], 2)
     
     return data
 
+from dotenv import dotenv_values # Addition for dynamic key loading
+
 def extract_with_gemini(text):
-    """Refine extraction with Gemini LLM for better precision"""
-    if not GOOGLE_API_KEY:
-        return None
-    
+    """Refine extraction with Gemini LLM for better precision (Safe mode)"""
     try:
+        from dotenv import dotenv_values
+        env = dotenv_values()
+        current_key = env.get('GOOGLE_API_KEY')
+        if not current_key or "AIza" not in current_key:
+            print("[GEMINI] Skipped: Invalid or missing API KEY in .env")
+            return None
+            
+        genai.configure(api_key=current_key)
         model = genai.GenerativeModel('gemini-1.5-flash')
+        
         prompt = f"""
-        Extract invoice data from the following text in JSON format:
-        Text: {text}
+        Act as an expert Moroccan accountant. Extract data from this invoice text:
+        {text}
         
-        Fields to extract:
-        - invoice_number (string)
-        - invoice_date (string)
-        - supplier (string)
-        - ice (string, 15 digits)
-        - ht_amount (float)
-        - vat_amount (float)
-        - total_amount (float)
-        
-        Only return the JSON. If a value is missing, return null.
+        Return ONLY valid JSON:
+        {{
+            "invoice_number": "number",
+            "invoice_date": "DD/MM/YYYY",
+            "supplier": "Company Name (REDAL, LYDEC, etc.)",
+            "ice": "15 digits",
+            "ht_amount": float,
+            "vat_amount": float,
+            "total_amount": float
+        }}
         """
         response = model.generate_content(prompt)
-        # Handle cases where response might contain markdown code blocks
-        json_text = response.text.strip().replace('```json', '').replace('```', '')
-        return json.loads(json_text)
+        text_resp = response.text.replace('```json', '').replace('```', '').strip()
+        data = json.loads(text_resp[text_resp.find('{'):text_resp.rfind('}')+1])
+        print(f"[GEMINI] Success for supplier: {data.get('supplier')}")
+        return data
     except Exception as e:
-        print(f"[Error] Gemini extraction failed: {e}")
+        print(f"[GEMINI ERROR] {str(e)}")
         return None
 
 def validate_data(data):
@@ -537,12 +673,22 @@ def upload_file():
                             # In this case skip the OCR block below
                             # ... later
                 
-                # If STILL no key and no data from dynamic attempt, only then do OCR
+                # Alternative 0: Z.IA (Si configurer)
                 if not invoice_data:
-                    if 'pdf' in file_type:
-                        extracted_text = extract_text_from_pdf(filepath)
-                    else:  # Image file
-                        extracted_text = extract_text_from_image(filepath)
+                    extracted_text = extract_with_zai(filepath)
+                    if extracted_text:
+                        print("[SUCCESS] Z.IA utilisé avec succès.")
+                    else:
+                        # Alternative 1: OCR.Space (Cloud Gratuit)
+                        extracted_text = extract_text_with_ocr_space(filepath)
+                    
+                    # Alternative 2: Local OCR (EasyOCR) if OCR.Space failed or no key
+                    if not extracted_text:
+                        print("[FALLBACK] Utilisation de l'OCR local...")
+                        if 'pdf' in file_type:
+                            extracted_text = extract_text_from_pdf(filepath)
+                        else:  # Image file
+                            extracted_text = extract_text_from_image(filepath)
                 
                 if not extracted_text or extracted_text.startswith("[ERROR"):
                     return jsonify({"error": f"Échec de l'OCR local : {extracted_text or 'Mémoire insuffisante'}. Veuillez ajouter une clé GOOGLE_API_KEY pour utiliser l'IA."}), 422

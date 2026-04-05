@@ -118,7 +118,7 @@
                     <th>Fournisseur</th>
                     <th>ICE</th>
                     <th>Date</th>
-                    <th>Montant TTC</th>
+                    <th>Montant TTC (DH)</th>
                     <th style="text-align: right;">Action</th>
                 </tr>
             </thead>
@@ -180,7 +180,7 @@
     function exportCSV() {
         if (historyData.length === 0) return;
         const BOM = "\uFEFF";
-        let csv = BOM + 'N°;N° Facture;Date;Fournisseur;ICE;TVA (DH);Montant HT;Total TTC (DH);Fichier source\n';
+        let csv = BOM + 'N°;N° Facture;Date;Fournisseur;ICE;TVA (DH);Montant HT (DH);Total TTC (DH);Fichier source\n';
 
         // Ordre chronologique (La plus ancienne = N° 1)
         const exportData = [...historyData].reverse();
