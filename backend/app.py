@@ -480,7 +480,8 @@ def extract_invoice_data(text):
             # Check if it's followed by % in the nearby text
             if '%' not in text[match.end():match.end()+5]:
                 val = clean_amount(match.group(1))
-                if val:
+                # SANITY CHECK: VAT cannot be larger than the total or the HT
+                if val and (not data.get('total_amount') or val < data['total_amount']):
                     data['vat_amount'] = val
                     break
 
@@ -490,9 +491,19 @@ def extract_invoice_data(text):
         match_rate = re.search(r'(\d{1,2})\s*%', text)
         if match_rate:
             rate = float(match_rate.group(1))
+            data['vat_rate'] = rate # Store rate for UI
             # Calculate HT and TVA: TTC = HT * (1 + rate/100)
             data['ht_amount'] = round(data['total_amount'] / (1 + rate/100), 2)
             data['vat_amount'] = round(data['total_amount'] - data['ht_amount'], 2)
+    
+    # If we have HT and rate but no TTC
+    elif data.get('ht_amount') and not data.get('total_amount'):
+        match_rate = re.search(r'(\d{1,2})\s*%', text)
+        if match_rate:
+            rate = float(match_rate.group(1))
+            data['vat_rate'] = rate
+            data['vat_amount'] = round(data['ht_amount'] * (rate/100), 2)
+            data['total_amount'] = round(data['ht_amount'] + data['vat_amount'], 2)
     
     # Simple subtraction if possible
     if data.get('total_amount') and data.get('ht_amount') and not data.get('vat_amount'):

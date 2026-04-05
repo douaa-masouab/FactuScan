@@ -340,7 +340,7 @@
                         <div class="sval" id="rHt">—</div>
                     </div>
                     <div class="sc">
-                        <div class="slbl"><i class="bi bi-percent"></i> TVA (DH)</div>
+                        <div class="slbl"><i class="bi bi-percent"></i> Taux TVA (%)</div>
                         <div class="sval" id="rTva">—</div>
                     </div>
                     <div class="sc" style="grid-column: span 2; background: rgba(16,185,129,0.05);">
@@ -459,7 +459,7 @@
         document.getElementById('rNum').textContent = d.invoice_number || 'N/A';
         document.getElementById('rDate').textContent = d.invoice_date || 'N/A';
         document.getElementById('rHt').textContent = d.ht_amount ? d.ht_amount.toFixed(2) + ' DH' : 'N/A';
-        document.getElementById('rTva').textContent = d.vat_amount ? d.vat_amount.toFixed(2) + ' DH' : 'N/A';
+        document.getElementById('rTva').textContent = d.vat_rate ? d.vat_rate + ' %' : (d.vat_amount ? d.vat_amount.toFixed(2) + ' DH' : 'N/A');
         document.getElementById('rTotal').textContent = d.total_amount ? d.total_amount.toFixed(2) + ' DH' : 'N/A';
         document.getElementById('rText').textContent = d.raw || '';
 
