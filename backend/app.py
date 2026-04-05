@@ -745,6 +745,19 @@ def upload_file():
                     print(f"[DATABASE ERROR] {db_e}")
                     session.rollback()
             
+            # --- GLOBAL SAFETY FILTER (Anti-Fake Amounts) ---
+            # Suppression de tout montant absurde avant de répondre pour éviter les faux positifs d'IDs
+            for key in ['total_amount', 'ht_amount', 'vat_amount']:
+                val = invoice_data.get(key)
+                if val and isinstance(val, (int, float)):
+                    if val > 100000:
+                        print(f"[SECURITY] Blocking absurd amount: {val} for {key}")
+                        invoice_data[key] = None
+            
+            # Double check: Total must be >= HT
+            if invoice_data.get('total_amount') and invoice_data.get('ht_amount'):
+                if invoice_data['total_amount'] < invoice_data['ht_amount']:
+                    invoice_data['total_amount'] = None 
             return jsonify({
                 "id": invoice_id,
                 "filename": filename,
