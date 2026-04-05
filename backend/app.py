@@ -429,15 +429,20 @@ def extract_invoice_data(text):
         r'net\s*a\s*payer\s*[:#]?\s*([0-9.,\s]{1,15})',
         r'total\s*[:#]?\s*([0-9.,\s]{4,15})' 
     ]
+    # On cherche les patterns, mais on valide que ce ne sont pas des IDs (trop longs)
     for p in total_patterns:
-        match = re.search(p, text, re.IGNORECASE)
-        if match:
-            # Capturer uniquement la partie numérique au début du groupe pour éviter de baver sur la suite
+        matches = re.finditer(p, text, re.IGNORECASE)
+        # On prend le DERNIER match trouvé (le total est en bas)
+        results = list(matches)
+        if results:
+            match = results[-1] # Le plus en bas possible
             val_str = match.group(1).strip()
             num_match = re.search(r'^([0-9\s.,]+)', val_str)
             if num_match:
                 val = clean_amount(num_match.group(1))
-                if val and val > 1: 
+                # SANITY CHECK: Un total de facture ne devrait pas dépasser 100 000 DH pour ce cas d'usage
+                # Et ne doit pas ressembler à un matricule (pas plus de 7-8 chiffres significatifs)
+                if val and 1 < val < 100000: 
                     data['total_amount'] = val
                     break
 
@@ -451,10 +456,11 @@ def extract_invoice_data(text):
         r'MNT\s*HT\s*[:#]?\s*([0-9.,\s]+)'
     ]
     for p in ht_patterns:
-        match = re.search(p, text, re.IGNORECASE)
-        if match:
+        matches = list(re.finditer(p, text, re.IGNORECASE))
+        if matches:
+            match = matches[-1] # Toujours le plus en bas
             val = clean_amount(match.group(1))
-            if val:
+            if val and val < 100000:
                 data['ht_amount'] = val
                 break
     
