@@ -1000,10 +1000,14 @@ def voice_command():
         invoice_count = 0
         if DB_AVAILABLE:
             try:
+                # Force a commit/refresh to avoid stale data
+                session.commit()
                 invoice_count = session.query(Invoice).filter_by(user_id=current_user.id).count()
                 total_ttc = float(session.query(Invoice).filter_by(user_id=current_user.id).with_entities(func.coalesce(func.sum(Invoice.total_amount), 0.0)).scalar() or 0)
+                print(f"Assistant Voice Query - User: {current_user.id}, Count: {invoice_count}")
             except Exception as e:
-                print(f"[RECOVERY] DB Query failed in voice assistant: {e}")
+                session.rollback()
+                print(f"Error in voice database query: {e}")
                 pass
 
         # 2. KEYWORD FALLBACK (Works without AI)
