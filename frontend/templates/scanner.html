@@ -495,23 +495,37 @@
 
     function speakResults() {
         if (!S.currentData) { showToast('❌ ' + ui('tNoData')); return; }
-        showToast('🔊 ' + ui('tReading'));
-
+        
         const d = S.currentData;
         const textToSpeech = `Facture de ${d.supplier || 'fournisseur inconnu'}. Montant total de ${d.total_amount || 0} dirhams. Date de facture: ${d.invoice_date || 'inconnue'}.`;
+        
+        showToast('🔊 Préparation de la lecture...');
 
         fetch('/voice/synthesize', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text: textToSpeech })
         })
-            .then(res => res.json())
+            .then(res => {
+                if (!res.ok) throw new Error("Erreur serveur vocale");
+                return res.json();
+            })
             .then(data => {
                 if (data.audio) {
+                    showToast('🔊 Lecture vocale (' + (data.lang === 'ar' ? 'Arabe' : 'Français') + ')...');
                     const audio = new Audio("data:audio/mp3;base64," + data.audio);
-                    audio.play();
-                } else { showToast('❌ Erreur de synthèse vocale'); }
-            }).catch(() => showToast('❌ Erreur de réseau vocale'));
+                    audio.play().catch(e => {
+                        console.error("Autoplay blocked:", e);
+                        showToast('⚠️ Cliquez n\'importe où pour autoriser le son.');
+                    });
+                } else { 
+                    showToast('❌ Erreur de synthèse vocale'); 
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                showToast('❌ Impossible de charger la voix. Vérifiez votre connexion.');
+            });
     }
 
     function exportCSV() {

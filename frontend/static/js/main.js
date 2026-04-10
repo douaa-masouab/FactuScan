@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
         recognition.onstart = () => {
             status.classList.add('recording');
             hint.textContent = 'Écoute en cours...';
+            startBtn.innerHTML = '<i class="bi bi-mic-fill"></i> Parlez maintenant...';
             startBtn.disabled = true;
         };
 
@@ -32,15 +33,27 @@ document.addEventListener('DOMContentLoaded', () => {
             await processCommand(command);
         };
 
-        recognition.onerror = () => {
+        recognition.onerror = (event) => {
             status.classList.remove('recording');
-            hint.textContent = "Erreur de micro. Réessayez.";
             startBtn.disabled = false;
+            startBtn.innerHTML = '<i class="bi bi-record-circle"></i> Parler';
+            
+            if (event.error === 'not-allowed') {
+                hint.textContent = "Accès micro refusé. Vérifiez vos paramètres ou l'HTTPS.";
+                alert("Erreur: L'accès au micro est bloqué. Note: La reconnaissance vocale nécessite souvent une connexion HTTPS ou d'être sur localhost.");
+            } else if (event.error === 'network') {
+                hint.textContent = "Erreur réseau. Vérifiez votre connexion.";
+            } else {
+                hint.textContent = "Erreur: " + event.error;
+            }
         };
 
         recognition.onend = () => {
             status.classList.remove('recording');
-            startBtn.disabled = false;
+            if (startBtn.disabled) {
+                startBtn.disabled = false;
+                startBtn.innerHTML = '<i class="bi bi-record-circle"></i> Parler';
+            }
         };
     }
 

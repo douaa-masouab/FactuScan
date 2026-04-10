@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Inscription — FactuScan{% endblock %}
+
+{% block content %}
+<div class="auth-container" style="display: flex; align-items: center; justify-content: center; min-height: 80vh; padding: 2rem;">
+    <div class="card auth-card" style="width: 100%; max-width: 450px; padding: 3rem;">
+        <div class="auth-header" style="text-align: center; margin-bottom: 2.5rem;">
+            <div class="brand-icon" style="margin: 0 auto 1.5rem;">
+                <i class="bi bi-person-plus text-white" style="font-size: 1.5rem;"></i>
+            </div>
+            <h1 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 0.5rem; background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Créer un compte</h1>
+            <p style="color: var(--t2);">Rejoignez FactuScan dès aujourd'hui</p>
+        </div>
+
+        <form id="register-form">
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="username" style="display: block; color: var(--t2); font-size: 0.9rem; margin-bottom: 0.5rem;">Nom d'utilisateur</label>
+                <div style="position: relative;">
+                    <i class="bi bi-person" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--t3);"></i>
+                    <input type="text" id="username" name="username" required 
+                        style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: var(--r2); padding: 0.8rem 1rem 0.8rem 2.8rem; color: #fff; outline: none; transition: var(--tr);"
+                        placeholder="votre_nom">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 2rem;">
+                <label for="password" style="display: block; color: var(--t2); font-size: 0.9rem; margin-bottom: 0.5rem;">Mot de passe</label>
+                <div style="position: relative;">
+                    <i class="bi bi-shield-lock" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--t3);"></i>
+                    <input type="password" id="password" name="password" required 
+                        style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: var(--r2); padding: 0.8rem 1rem 0.8rem 2.8rem; color: #fff; outline: none; transition: var(--tr);"
+                        placeholder="••••••••">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-primary w-100" style="padding: 12px; font-size: 1rem; margin-bottom: 1.5rem; width: 100%;">
+                S'inscrire
+            </button>
+        </form>
+
+        <div style="text-align: center; font-size: 0.9rem; color: var(--t2);">
+            Déjà un compte ? <a href="/login" style="color: var(--acc); text-decoration: none; font-weight: 600;">Connectez-vous</a>
+        </div>
+    </div>
+</div>
+
+<div id="toast" style="position: fixed; bottom: 2rem; right: 2rem; padding: 1rem 2rem; border-radius: var(--r2); color: #fff; display: none; z-index: 10000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transform: translateY(100px); transition: var(--tr);">
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('register-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    const originalText = btn.innerText;
+    
+    btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Inscription...';
+    btn.disabled = true;
+
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+
+    try {
+        const response = await fetch('/register', {
+            method: 'POST',
+            body: JSON.stringify(data),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            showToast(result.message, 'var(--ok)');
+            setTimeout(() => {
+                window.location.href = '/login';
+            }, 1500);
+        } else {
+            showToast(result.error || 'Erreur lors de l\'inscription', 'var(--err)');
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    } catch (error) {
+        showToast('Erreur réseau. Veuillez réessayer.', 'var(--err)');
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+});
+
+function showToast(msg, bg) {
+    const toast = document.getElementById('toast');
+    toast.innerText = msg;
+    toast.style.background = bg;
+    toast.style.display = 'block';
+    setTimeout(() => {
+        toast.style.transform = 'translateY(0)';
+    }, 10);
+    
+    setTimeout(() => {
+        toast.style.transform = 'translateY(100px)';
+        setTimeout(() => {
+            toast.style.display = 'none';
+        }, 300);
+    }, 4000);
+}
+
+// Add focus effect to inputs
+document.querySelectorAll('input').forEach(input => {
+    input.addEventListener('focus', () => {
+        input.parentElement.parentElement.querySelector('label').style.color = 'var(--acc)';
+        input.style.borderColor = 'var(--acc)';
+        input.style.boxShadow = '0 0 15px rgba(99, 102, 241, 0.2)';
+    });
+    input.addEventListener('blur', () => {
+        input.parentElement.parentElement.querySelector('label').style.color = 'var(--t2)';
+        input.style.borderColor = 'var(--border)';
+        input.style.boxShadow = 'none';
+    });
+});
+</script>
+{% endblock %}

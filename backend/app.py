@@ -1,24 +1,21 @@
+from flask import Flask, request, jsonify, render_template, send_file
+from werkzeug.utils import secure_filename
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, func
 import os
 import uuid
 import json
 import io
 import base64
 from datetime import datetime
-from flask import Flask, request, jsonify, render_template, send_file
-from werkzeug.utils import secure_filename
-from PIL import Image
-import pdf2image
-import cv2
-import numpy as np
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, func
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import easyocr
 import re
-import magic
 from flask_cors import CORS
 from dotenv import load_dotenv
-import google.generativeai as genai
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from werkzeug.security import generate_password_hash, check_password_hash
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship
 
 # Load configuration
 load_dotenv()
@@ -44,6 +41,7 @@ if not GOOGLE_API_KEY or not OCR_SPACE_API_KEY:
 
 if GOOGLE_API_KEY:
     try:
+        import google.generativeai as genai
         genai.configure(api_key=GOOGLE_API_KEY)
         print(f"[SYSTEM] Gemini IA activée.")
     except Exception as e:
@@ -60,6 +58,16 @@ app = Flask(
     static_folder=os.path.join(os.path.dirname(__file__), '..', 'frontend', 'static')
 )
 CORS(app)
+
+# Login Manager configuration
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+@login_manager.user_loader
+def load_user(user_id):
+    if not DB_AVAILABLE: return None
+    return session.query(User).get(int(user_id))
 
 # Configuration
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -132,6 +140,16 @@ class Invoice(Base):
     extracted_text = Column(Text)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    user_id = Column(Integer, ForeignKey('users.id'))
+    user = relationship("User", back_populates="invoices")
+
+class User(Base, UserMixin):
+    __tablename__ = 'users'
+    id = Column(Integer, primary_key=True)
+    username = Column(String(100), unique=True, nullable=False)
+    password_hash = Column(String(200), nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+    invoices = relationship("Invoice", back_populates="user")
 
 # Create tables (only if DB is available)
 if DB_AVAILABLE:
@@ -146,11 +164,22 @@ if DB_AVAILABLE:
                 print("[INFO] Adding missing column 'ht_amount' to invoices table...")
                 conn.execute(text("ALTER TABLE invoices ADD COLUMN ht_amount FLOAT"))
                 conn.commit()
+            if 'user_id' not in columns:
+                print("[INFO] Adding missing column 'user_id' to invoices table...")
+                conn.execute(text("ALTER TABLE invoices ADD COLUMN user_id INTEGER"))
+                conn.commit()
     except Exception as e:
         print(f"[WARNING] Database initialization/migration error: {e}")
 
-# Initialize OCR reader
-reader = easyocr.Reader(['fr'], gpu=False)
+# Initialize OCR reader (Lazy Loading)
+reader = None
+def get_ocr_reader():
+    global reader
+    if reader is None:
+        import easyocr
+        print("[SYSTEM] Initialisation de l'OCR local (EasyOCR)...")
+        reader = easyocr.Reader(['fr'], gpu=False)
+    return reader
 
 # Helper functions
 def allowed_file(filename):
@@ -163,6 +192,7 @@ def extract_with_gemini_multimodal(filepath, mime_type):
         return None, None
     
     try:
+        import google.generativeai as genai
         # Open file as binary
         with open(filepath, "rb") as f:
             file_data = f.read()
@@ -233,13 +263,15 @@ def extract_with_gemini_multimodal(filepath, mime_type):
 def extract_text_from_image(image_path):
     """Extract text from image using EasyOCR (fallback)"""
     try:
+        from PIL import Image
+        import numpy as np
         # Compatibility fix for newer Pillow versions
         if not hasattr(Image, 'ANTIALIAS'):
             import PIL.Image
             if not hasattr(PIL.Image, 'ANTIALIAS'):
                 setattr(PIL.Image, 'ANTIALIAS', getattr(PIL.Image, 'LANCZOS', getattr(PIL.Image, 'BICUBIC', 1)))
         
-        result = reader.readtext(image_path)
+        result = get_ocr_reader().readtext(image_path)
         text = ' '.join([item[1] for item in result])
         return text
     except Exception as e:
@@ -250,11 +282,13 @@ def extract_text_from_image(image_path):
 def extract_text_from_pdf(pdf_path):
     """Extract text from PDF using pdf2image and EasyOCR (fallback)"""
     try:
+        import pdf2image
+        import numpy as np
         images = pdf2image.convert_from_path(pdf_path)
         all_text = ""
         for image in images:
             img_array = np.array(image)
-            result = reader.readtext(img_array)
+            result = get_ocr_reader().readtext(img_array)
             text = ' '.join([item[1] for item in result])
             all_text += text + " "
         return all_text
@@ -524,6 +558,7 @@ from dotenv import dotenv_values # Addition for dynamic key loading
 def extract_with_gemini(text):
     """Refine extraction with Gemini LLM for better precision (Safe mode)"""
     try:
+        import google.generativeai as genai
         from dotenv import dotenv_values
         env = dotenv_values()
         current_key = env.get('GOOGLE_API_KEY')
@@ -593,16 +628,71 @@ def validate_data(data):
             
     return validations
 
+# Authentication Routes
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        data = request.get_json() if request.is_json else request.form
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not username or not password:
+            return jsonify({"error": "Nom d'utilisateur et mot de passe requis"}), 400
+            
+        if not DB_AVAILABLE:
+            return jsonify({"error": "Base de données indisponible"}), 503
+            
+        existing_user = session.query(User).filter_by(username=username).first()
+        if existing_user:
+            return jsonify({"error": "Cet utilisateur existe déjà"}), 400
+            
+        new_user = User(
+            username=username,
+            password_hash=generate_password_hash(password)
+        )
+        session.add(new_user)
+        session.commit()
+        return jsonify({"message": "Compte créé avec succès"}), 201
+        
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        data = request.get_json() if request.is_json else request.form
+        username = data.get('username')
+        password = data.get('password')
+        
+        if not DB_AVAILABLE:
+            return jsonify({"error": "Base de données indisponible"}), 503
+            
+        user = session.query(User).filter_by(username=username).first()
+        if user and check_password_hash(user.password_hash, password):
+            login_user(user)
+            return jsonify({"message": "Connexion réussie", "redirect": "/dashboard"}), 200
+        
+        return jsonify({"error": "Identifiants invalides"}), 401
+        
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return render_template('index.html', message="Déconnecté avec succès")
+
 # Routes
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/dashboard')
+@login_required
 def dashboard():
     return render_template('dashboard.html')
 
 @app.route('/scanner')
+@login_required
 def scanner():
     return render_template('scanner.html')
 
@@ -627,6 +717,7 @@ def terms():
     return render_template('terms.html')
 
 @app.route('/upload', methods=['POST'])
+@login_required
 def upload_file():
     try:
         # Debug logging
@@ -646,6 +737,7 @@ def upload_file():
             
             # Detect file type and normalize
             try:
+                import magic
                 file_type = magic.from_file(filepath, mime=True)
                 # Map variations to standard types for Gemini
                 if 'jfif' in file_type or 'jpe' in file_type:
@@ -679,6 +771,7 @@ def upload_file():
                                 break
                     
                     if found_key:
+                        import google.generativeai as genai
                         globals()['GOOGLE_API_KEY'] = found_key
                         genai.configure(api_key=found_key)
                         print(f"[SUCCESS] FOUND KEY DYNAMICALLY: {found_key[:4]}...")
@@ -736,7 +829,8 @@ def upload_file():
                         ht_amount=invoice_data.get('ht_amount'),
                         vat_amount=invoice_data.get('vat_amount'),
                         total_amount=invoice_data.get('total_amount'),
-                        extracted_text=extracted_text
+                        extracted_text=extracted_text,
+                        user_id=current_user.id
                     )
                     session.add(new_invoice)
                     session.commit()
@@ -774,8 +868,9 @@ def upload_file():
         return jsonify({"error": f"Erreur interne: {str(global_e)}"}), 500
 
 @app.route('/invoices', methods=['GET'])
+@login_required
 def get_invoices():
-    invoices = session.query(Invoice).all()
+    invoices = session.query(Invoice).filter_by(user_id=current_user.id).all()
     result = []
     for invoice in invoices:
         result.append({
@@ -792,8 +887,9 @@ def get_invoices():
     return jsonify(result)
 
 @app.route('/invoices/<int:invoice_id>', methods=['GET'])
+@login_required
 def get_invoice(invoice_id):
-    invoice = session.query(Invoice).filter_by(id=invoice_id).first()
+    invoice = session.query(Invoice).filter_by(id=invoice_id, user_id=current_user.id).first()
     if not invoice:
         return jsonify({"error": "Invoice not found"}), 404
     
@@ -811,8 +907,9 @@ def get_invoice(invoice_id):
     })
 
 @app.route('/invoices/<int:invoice_id>', methods=['PUT'])
+@login_required
 def update_invoice(invoice_id):
-    invoice = session.query(Invoice).filter_by(id=invoice_id).first()
+    invoice = session.query(Invoice).filter_by(id=invoice_id, user_id=current_user.id).first()
     if not invoice:
         return jsonify({"error": "Invoice not found"}), 404
     
@@ -849,8 +946,9 @@ def update_invoice(invoice_id):
     })
 
 @app.route('/invoices/<int:invoice_id>', methods=['DELETE'])
+@login_required
 def delete_invoice(invoice_id):
-    invoice = session.query(Invoice).filter_by(id=invoice_id).first()
+    invoice = session.query(Invoice).filter_by(id=invoice_id, user_id=current_user.id).first()
     if not invoice:
         return jsonify({"error": "Invoice not found"}), 404
     
@@ -870,6 +968,7 @@ def delete_invoice(invoice_id):
     return jsonify({"message": "Invoice deleted successfully"})
 
 @app.route('/voice/command', methods=['POST'])
+@login_required
 def voice_command():
     """Process voice command manually or with AI"""
     data = request.json
@@ -887,8 +986,8 @@ def voice_command():
         invoice_count = 0
         if DB_AVAILABLE:
             try:
-                invoice_count = session.query(Invoice).count()
-                total_ttc = float(session.query(Invoice).with_entities(func.coalesce(func.sum(Invoice.total_amount), 0.0)).scalar() or 0)
+                invoice_count = session.query(Invoice).filter_by(user_id=current_user.id).count()
+                total_ttc = float(session.query(Invoice).filter_by(user_id=current_user.id).with_entities(func.coalesce(func.sum(Invoice.total_amount), 0.0)).scalar() or 0)
             except:
                 pass
 
@@ -905,6 +1004,7 @@ def voice_command():
         # 3. SMART AI FALLBACK (If keywords don't match)
         if GOOGLE_API_KEY:
             try:
+                import google.generativeai as genai
                 context = f"Tu es l'assistant FactuScan. Tu aides avec les factures. Total: {total_ttc} DH. Invoices: {invoice_count}. Commande: {command}. Réponds court."
                 model = genai.GenerativeModel('gemini-1.5-flash')
                 response = model.generate_content(context)
@@ -918,18 +1018,27 @@ def voice_command():
         return jsonify({"response": "Désolé, l'assistant est temporairement indisponible."})
 
 @app.route('/voice/synthesize', methods=['POST'])
+@login_required
 def synthesize_speech():
-    """Convert text to speech"""
+    """Convert text to speech with Auto-language detection (FR/AR)"""
     data = request.json
     text = data.get('text', '')
     
+    if not text:
+        return jsonify({"error": "Texte vide"}), 400
+
     try:
         from gtts import gTTS
         import tempfile
+        import re
+
+        # Detect Arabic characters to switch language
+        is_arabic = bool(re.search(r'[\u0600-\u06FF]', text))
+        lang = 'ar' if is_arabic else 'fr'
         
         # Create temporary file
         with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as tmp_file:
-            tts = gTTS(text=text, lang='fr', slow=False)
+            tts = gTTS(text=text, lang=lang, slow=False)
             tts.save(tmp_file.name)
             
             # Read file and encode to base64
@@ -942,10 +1051,12 @@ def synthesize_speech():
             
             return jsonify({
                 "audio": audio_base64,
-                "format": "mp3"
+                "format": "mp3",
+                "lang": lang
             })
     
     except Exception as e:
+        print(f"[VOICE ERROR] {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/check_status', methods=['GET'])
