@@ -59,7 +59,12 @@ app = Flask(
 )
 CORS(app)
 
-# Login Manager configuration
+# Configuration Flask-Login
+app.config.update(
+    SESSION_COOKIE_SAMESITE='None',
+    SESSION_COOKIE_SECURE=True  # Nécessaire pour SameSite=None
+)
+app.secret_key = os.environ.get('SECRET_KEY', 'factuscan_secret_key_default_123')
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -660,6 +665,7 @@ def register():
 def login():
     if request.method == 'POST':
         data = request.get_json() if request.is_json else request.form
+        next_url = request.args.get('next') or '/dashboard'
         username = data.get('username')
         password = data.get('password')
         
@@ -669,7 +675,7 @@ def login():
         user = session.query(User).filter_by(username=username).first()
         if user and check_password_hash(user.password_hash, password):
             login_user(user)
-            return jsonify({"message": "Connexion réussie", "redirect": "/dashboard"}), 200
+            return jsonify({"message": "Connexion réussie", "redirect": next_url}), 200
         
         return jsonify({"error": "Identifiants invalides"}), 401
         
