@@ -1,3 +1,11 @@
+---
+title: FactuScan
+emoji: 📄
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_port: 5000
+---
 # FactuScan - Analyse Intelligente & Multi-Utilisateurs
 
 <div align="center">
