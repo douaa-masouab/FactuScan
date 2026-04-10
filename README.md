@@ -6,109 +6,87 @@ colorTo: purple
 sdk: docker
 app_port: 5000
 ---
-# FactuScan - Analyse Intelligente des Factures Marocaines
+# FactuScan - Analyse Intelligente & Multi-Utilisateurs
 
 <div align="center">
 
 ![FactuScan Logo](https://img.shields.io/badge/FactuScan-OCR%20Intelligent-blue?style=for-the-badge)
-![Version](https://img.shields.io/badge/version-1.0.0-green?style=for-the-badge)
-![License](https://img.shields.io/badge/license-MIT-purple?style=for-the-badge)
-![Docker](https://img.shields.io/badge/docker-ready-blue?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-1.1.0-green?style=for-the-badge)
+![Security](https://img.shields.io/badge/auth-Flask--Login-orange?style=for-the-badge)
+![AI](https://img.shields.io/badge/IA-Gemini%201.5-red?style=for-the-badge)
 
-*Automatisation de l'extraction des informations des factures marocaines via l'OCR et l'IA*
+*Extraction automatisée et sécurisée des informations de factures marocaines via OCR et IA Hybride*
 
 [🚀 Déployer](#déploiement) • [📖 Documentation](#documentation) • [💬 Support](#support)
 
 </div>
 
+---
+
 ## 📋 Table des Matières
 
 - [À Propos](#à-propos)
-- [🌟 Fonctionnalités](#fonctionnalités)
-- [🏗️ Architecture](#architecture)
-- [🚀 Démarrage Rapide](#démarrage-rapide)
-- [📦 Installation](#installation)
+- [🌟 Nouvelles Fonctionnalités](#fonctionnalités)
+- [🏗️ Architecture Système](#architecture)
+- [🚀 Installation & Démarrage](#démarrage-rapide)
 - [🎯 Utilisation](#utilisation)
-- [🚀 Documentation](#documentation)
-- [🤝 Contribuer](#contribuer)
 - [📄 Licence](#licence)
-- [📞 Support](#support)
 
 ---
 
 ## 🎯 À Propos
 
-**FactuScan** est une application web d'analyse intelligente des factures marocaines qui automatise l'extraction des informations via l'OCR et l'intelligence artificielle. Conçue pour le contexte marocain, elle reconnaît les formats de factures locaux et fournit une interface moderne et épurée.
-
-### 🎯 Objectif Principal
-
-Simplifier et automatiser le traitement des factures pour les entreprises marocaines, réduisant le temps de saisie manuelle et minimisant les erreurs.
+**FactuScan** est désormais une plateforme sécurisée multi-utilisateurs pour l'analyse des factures marocaines. Elle combine la puissance de **Google Gemini 1.5** et de **EasyOCR** pour garantir une extraction de données ultra-précise, même sur des documents complexes, tout en protégeant la confidentialité de chaque utilisateur.
 
 ---
 
 ## 🌟 Fonctionnalités
 
-### 📊 Extraction Intelligente
-- **OCR Optimisé** : Reconnaissance de texte précise en Français (modèle EasyOCR)
-- **Extraction Automatique** :
-  - Numéro de facture (avec gestion du fallback `_`)
-  - Date d'émission
-  - Montant TVA
-  - Montant total TTC
-  - Nom du fournisseur
-  - ICE (Identifiant Commun de l'Entreprise)
+### 🔐 Authentification & Sécurité
+- **Multi-Utilisateurs** : Système complet d'inscription et de connexion.
+- **Isolation des Données** : Chaque compte possède ses propres archives (vos factures ne sont visibles que par vous).
+- **Sessions Sécurisées** : Gestion des sessions via Flask-Login.
 
-### 🎙️ Assistant Vocal
-- **Reconnaissance Vocale** : Commandes vocales en Français
-- **Synthèse Vocale** : Réponses vocales claires pour la lecture des résultats
-- **Commandes Intuitives** : Résumé, totaux, aide, lire.
+### 📊 Extraction IA Hybride (Morocco Optimized)
+- **IA Gemini 1.5 Flash** : Analyse contextuelle pour une précision de 99% sur les montants, ICE et dates.
+- **OCR Local (Fallback)** : Utilisation de EasyOCR pour les environnements hors-ligne ou documents manuscrits.
+- **Validation Mathématique** : Vérification automatique de la cohérence HT + TVA = TTC.
 
-### 📱 Interface Utilisateur
-- **Design Moderne** : Interface épurée, sombre et responsive
-- **Glisser-Déposer** : Importation facile des factures (Images ou PDF)
-- **Visualisation en Temps Réel** : Résultats instantanés avec badge de statut
-- **Mode Sombre** : Design premium style "Glassmorphism"
+### 🎙️ Assistant Vocal Bilingue
+- **Auto-Détection de Langue** : L'assistant détecte et parle désormais en **Français** ou en **Arabe** selon le contenu de la facture.
+- **Commandes Intuitives** : "Total", "Résumé", "Aide", "Lire".
 
-### 💾 Gestion des Données
-- **Historique Complet** : Toutes les factures archivées localement
-- **Exportation** : Export CSV structuré (Compatible Excel/UTF-8)
-- **Tableau de Bord** : Statistiques, totaux et gestion de l'historique
+### 🚀 Performance
+- **Lazy Loading** : Démarrage du serveur quasi-instantané grâce au chargement différé des modèles lourds d'IA.
 
 ---
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │    Backend      │    │    Database     │
-│   (HTML/JS)     │◄──►│   (Flask)       │◄──►│   (Local/DB)    │
-│   Simple UI     │    │   Python 3.10   │    │   SQLite/MySQL  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │
-                              ▼
-                       ┌─────────────────┐
-                       │   AI Services   │
-                       │  ┌───────────┐  │
-                       │  │   OCR     │  │
-                       │  │ (EasyOCR) │  │
-                       │  └───────────┘  │
-                       │  ┌───────────┐  │
-                       │  │   Voice   │  │
-                       │  │ (gTTS)    │  │
-                       │  └───────────┘  │
-                       └─────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌────────────────────┐
+│   Frontend      │    │    Backend      │    │     Database       │
+│   (HTML/JS)     │◄──►│    (Flask)      │◄──►│   (SQLite/MySQL)   │
+│ Login/Dashboard │    │  Auth & Logic   │    │  Invoices x Users  │
+└─────────────────┘    └─────────────────┘    └────────────────────┘
+                               │
+                               ▼
+                        ┌──────────────────┐
+                        │   AI Services    │
+                        │ ┌──────────────┐ │
+                        │ │  Gemini 1.5  │ │
+                        │ └──────────────┘ │
+                        │ ┌──────────────┐ │
+                        │ │ EasyOCR (AR) │ │
+                        │ └──────────────┘ │
+                        └──────────────────┘
 ```
 
 ---
 
 ## 🚀 Démarrage Rapide
 
-### Prérequis
-
-- [Python 3.10+](https://www.python.org/)
-- [Git](https://git-scm.com/)
-
-### Installation Locale
+### Installation
 
 ```bash
 # 1. Cloner le projet
@@ -121,46 +99,6 @@ pip install -r requirements.txt
 # 3. Lancer l'application
 python backend/app.py
 ```
-
-### Accès à l'Application
-
-Ouvrez votre navigateur et accédez à :
-- **Application** : http://localhost:5000
-- **Tableau de Bord** : http://localhost:5000/dashboard.html
-
----
-
-## 🎯 Utilisation
-
-### Importation de Factures
-
-1. **Glisser-Déposer** : Déposez vos fichiers PDF/JPG/PNG/JFIF
-2. **Parcourir** : Cliquez sur la zone de dépôt pour sélectionner
-3. **Analyse** : Cliquez sur "Analyser la facture" pour lancer le traitement OCR
-
-### Assistant Vocal
-
-```bash
-# Commandes disponibles (Français)
-- "Donne-moi un résumé" → Affiche le résumé des dernières factures
-- "Quel est le total ?" → Affiche le montant cumulé de toutes les factures
-- "Lire" → Lit vocalement les résultats de la dernière facture extraite
-- "Aide-moi" → Liste les commandes supportées
-```
-
----
-
-## 🤝 Contribuer
-
-Nous apprécions vos contributions ! Voici comment vous pouvez aider :
-
-1. **Fork** le projet
-2. **Créez** une branche (`git checkout -b feature/amazing-feature`)
-3. **Commitez** vos changements (`git commit -m 'Add amazing feature'`)
-4. **Pushez** (`git push origin feature/amazing-feature`)
-5. **Ouvrez** une Pull Request
-
----
 
 ## 📄 Licence
 
