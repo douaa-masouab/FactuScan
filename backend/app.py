@@ -1002,12 +1002,13 @@ def voice_command():
             try:
                 invoice_count = session.query(Invoice).filter_by(user_id=current_user.id).count()
                 total_ttc = float(session.query(Invoice).filter_by(user_id=current_user.id).with_entities(func.coalesce(func.sum(Invoice.total_amount), 0.0)).scalar() or 0)
-            except:
+            except Exception as e:
+                print(f"[RECOVERY] DB Query failed in voice assistant: {e}")
                 pass
 
         # 2. KEYWORD FALLBACK (Works without AI)
         if "total" in cmd_lower or "combien" in cmd_lower or "montant" in cmd_lower:
-            return jsonify({"response": f"D'après vos données, le montant total des factures est de {total_ttc:.2f} dirhams pour {invoice_count} factures."})
+            return jsonify({"response": f"D'après vos données personnelles, le montant total de vos {invoice_count} factures est de {total_ttc:.2f} dirhams."})
         
         if "résumé" in cmd_lower or "qu'est-ce que j'ai" in cmd_lower or "nombre" in cmd_lower:
             return jsonify({"response": f"Vous avez actuellement {invoice_count} factures enregistrées dans votre tableau de bord FactuScan."})
