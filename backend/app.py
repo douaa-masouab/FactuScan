@@ -21,8 +21,16 @@ from sqlalchemy.orm import relationship
 load_dotenv()
 
 # FINAL-ULTRA-MEGA-ROBUST API KEY DETECTION
-GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
-OCR_SPACE_API_KEY = os.environ.get('OCR_SPACE_API_KEY')
+def get_env_var(keys):
+    for key in keys:
+        val = os.environ.get(key)
+        if val: return val
+    return None
+
+GOOGLE_API_KEY = get_env_var(['GOOGLE_API_KEY', 'Clé API Google', 'Clé_API_Google'])
+SECRET_KEY = get_env_var(['SECRET_KEY', 'CLÉ SECRÈTE', 'CLE_SECRETE', 'SECRET_KEY'])
+OCR_SPACE_API_KEY = get_env_var(['OCR_SPACE_API_KEY', 'Clé API OCR_SPACE', 'CLE_API_OCR_SPACE'])
+Z_AI_API_KEY = get_env_var(['Z_AI_API_KEY', 'Clé API Z_AI', 'CLE_API_Z_AI'])
 
 # Scan all environment variables if not found
 if not GOOGLE_API_KEY or not OCR_SPACE_API_KEY:
