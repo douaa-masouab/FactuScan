@@ -396,8 +396,7 @@
     const S = {
         file: null,
         currentData: null,
-        isAnalyzing: false,
-        history: JSON.parse(localStorage.getItem('fs-history') || '[]')
+        isAnalyzing: false
     };
 
     function handleFileSelect(e) { const f = e.target.files[0]; if (f) loadFile(f); }
@@ -439,7 +438,6 @@
             S.currentData.filename = S.file.name;
 
             displayResults(S.currentData);
-            saveHistory(S.currentData);
             showToast('✅ ' + ui('tDone'));
         } catch (e) {
             showToast('❌ ' + e.message);
@@ -468,12 +466,6 @@
             vs.className = 'vstatus on ' + (d.validations.math_valid ? 'ok' : 'err');
             vs.innerHTML = d.validations.math_valid ? '✅ Calculs vérifiés' : '⚠️ ' + d.validations.errors.join(', ');
         }
-    }
-
-    function saveHistory(d) {
-        S.history.unshift(d);
-        if (S.history.length > 50) S.history.pop();
-        localStorage.setItem('fs-history', JSON.stringify(S.history));
     }
 
     function clearAll() {
@@ -528,28 +520,34 @@
             });
     }
 
-    function exportCSV() {
-        const history = JSON.parse(localStorage.getItem('fs-history') || '[]');
-        if (history.length === 0) { showToast('❌ ' + ui('tNoData')); return; }
+    async function exportCSV() {
+        try {
+            const response = await fetch('/invoices');
+            if (!response.ok) throw new Error("Erreur serveur");
+            const history = await response.json();
+            
+            if (history.length === 0) { showToast('❌ ' + ui('tNoData')); return; }
 
-        // Ordre chronologique (La plus ancienne = N° 1)
-        const exportData = [...history].reverse();
+            const exportData = [...history].reverse();
 
-        let csvContent = "\uFEFFN°;N° Facture;Date;Fournisseur;ICE;TVA (DH);Montant HT;Total TTC (DH);Fichier source\n";
-        exportData.forEach((d, idx) => {
-            csvContent += `${idx + 1};${d.invoice_number || ''};${d.invoice_date || ''};${d.supplier || ''};${d.ice || ''};${d.vat_amount || 0};${d.ht_amount || 0};${d.total_amount || 0};${d.filename || ''}\n`;
-        });
+            let csvContent = "\uFEFFN°;N° Facture;Date;Fournisseur;ICE;TVA (DH);Montant HT;Total TTC (DH);Fichier source\n";
+            exportData.forEach((d, idx) => {
+                csvContent += `${idx + 1};${d.invoice_number || ''};${d.invoice_date || ''};${d.supplier || ''};${d.ice || ''};${d.vat_amount || 0};${d.ht_amount || 0};${d.total_amount || 0};${d.filename || ''}\n`;
+            });
 
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        const timestamp = new Date().toISOString().slice(0, 10);
-        link.setAttribute("download", `FactuScan_Export_Total_${timestamp}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        showToast('✅ Historique complet exporté !');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            const timestamp = new Date().toISOString().slice(0, 10);
+            link.setAttribute("download", `FactuScan_Export_Total_${timestamp}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast('✅ Historique complet exporté !');
+        } catch (e) {
+            showToast('❌ Erreur lors de l\'exportation');
+        }
     }
 </script>
 {% endblock %}

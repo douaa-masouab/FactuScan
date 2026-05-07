@@ -134,7 +134,21 @@
 
 {% block extra_js %}
 <script>
-    let historyData = JSON.parse(localStorage.getItem('fs-history') || '[]');
+    let historyData = [];
+
+    async function loadDashboardData() {
+        try {
+            const response = await fetch('/invoices');
+            if (response.ok) {
+                historyData = await response.json();
+                renderDashboard();
+            } else {
+                console.error("Erreur de chargement des factures");
+            }
+        } catch (e) {
+            console.error("Erreur réseau", e);
+        }
+    }
 
     function renderDashboard() {
         let sumTtc = 0;
@@ -163,17 +177,24 @@
                 <td>${d.invoice_date || '—'}</td>
                 <td style="color: var(--ok); font-weight: 700;">${d.total_amount ? d.total_amount.toFixed(2) + ' DH' : '—'}</td>
                 <td style="text-align: right;">
-                    <button class="btn-secondary" onclick="deleteHistoryItem(${index})" style="padding: 6px 12px; color: var(--err); border-color: rgba(239,68,68,0.2);">Supprimer</button>
+                    <button class="btn-secondary" onclick="deleteHistoryItem(${d.id})" style="padding: 6px 12px; color: var(--err); border-color: rgba(239,68,68,0.2);">Supprimer</button>
                 </td>
             </tr>
         `).join('');
     }
 
-    function deleteHistoryItem(idx) {
-        if (confirm("Supprimer cette facture ?")) {
-            historyData.splice(idx, 1);
-            localStorage.setItem('fs-history', JSON.stringify(historyData));
-            renderDashboard();
+    async function deleteHistoryItem(id) {
+        if (confirm("Supprimer cette facture définitivement ?")) {
+            try {
+                const response = await fetch(`/invoices/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    loadDashboardData(); // Recharger depuis le serveur
+                } else {
+                    alert("Erreur lors de la suppression");
+                }
+            } catch (e) {
+                console.error(e);
+            }
         }
     }
 
@@ -197,6 +218,7 @@
         a.click();
     }
 
-    renderDashboard();
+    // Charger les données au démarrage
+    loadDashboardData();
 </script>
 {% endblock %}

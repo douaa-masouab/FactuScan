@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, send_file
+from flask import Flask, request, jsonify, render_template, send_file, redirect
 from werkzeug.utils import secure_filename
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, func
 import os
@@ -134,8 +134,15 @@ def init_db():
         DB_AVAILABLE = False
 
 init_db()
-# Create a global session for simple context
-session = Session() if Session else None
+# Create a thread-safe scoped session for Flask
+from sqlalchemy.orm import scoped_session
+session = scoped_session(Session) if Session else None
+
+# Nettoyer la session après chaque requête (très important pour les apps web)
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    if session:
+        session.remove()
 
 # Database Models
 class Invoice(Base):
@@ -694,6 +701,30 @@ def login():
 def logout():
     logout_user()
     return render_template('index.html', message="Déconnecté avec succès")
+
+@app.route('/delete_account', methods=['GET', 'POST'])
+@login_required
+def delete_account():
+    # Delete all invoices of this user
+    invoices = session.query(Invoice).filter_by(user_id=current_user.id).all()
+    for invoice in invoices:
+        # Delete file from filesystem
+        if invoice.filename:
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], invoice.filename)
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except Exception as e:
+                    print(f"Error removing file {filepath}: {e}")
+        session.delete(invoice)
+    
+    # Delete the user
+    user = session.query(User).get(current_user.id)
+    session.delete(user)
+    session.commit()
+    
+    logout_user()
+    return redirect('/')
 
 # Routes
 @app.route('/')

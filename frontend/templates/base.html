@@ -57,6 +57,9 @@
                 <a href="/logout" class="btn-secondary" title="Se déconnecter">
                     <i class="bi bi-box-arrow-right"></i>
                 </a>
+                <a href="/delete_account" class="btn-secondary" title="Supprimer mon compte" style="color: var(--err); border-color: rgba(239,68,68,0.2);" onclick="return confirm('Attention ! Voulez-vous vraiment supprimer définitivement votre compte et TOUTES vos factures ? Cette action est irréversible.');">
+                    <i class="bi bi-trash"></i>
+                </a>
                 {% else %}
                 <a href="/login" class="nav-link" style="margin-right: 1rem;">Connexion</a>
                 <a href="/register" class="btn-primary">S'inscrire</a>
