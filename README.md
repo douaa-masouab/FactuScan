@@ -1,3 +1,12 @@
+---
+title: FactuScan
+emoji: 📊
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # FactuScan - Analyse Intelligente & Multi-Utilisateurs
 
 <div align="center">
