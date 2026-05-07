@@ -7,7 +7,7 @@ import json
 import io
 import base64
 from datetime import datetime
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
 import re
 from flask_cors import CORS
@@ -80,7 +80,7 @@ login_manager.login_view = 'login'
 @login_manager.user_loader
 def load_user(user_id):
     if not DB_AVAILABLE: return None
-    return session.query(User).get(int(user_id))
+    return session.get(User, int(user_id))
 
 # Configuration
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -719,7 +719,7 @@ def delete_account():
         session.delete(invoice)
     
     # Delete the user
-    user = session.query(User).get(current_user.id)
+    user = session.get(User, current_user.id)
     session.delete(user)
     session.commit()
     
