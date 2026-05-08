@@ -446,6 +446,8 @@ def extract_invoice_data(text):
     elif "LYDEC" in text.upper(): data['supplier'] = "LYDEC"
     elif "IAM" in text.upper() or "TELECOM" in text.upper(): data['supplier'] = "MAROC TELECOM"
     elif "MAROC" in text.upper() and "TELECOM" in text.upper(): data['supplier'] = "MAROC TELECOM"
+    elif "ORANGE" in text.upper(): data['supplier'] = "ORANGE"
+    elif "INWI" in text.upper(): data['supplier'] = "INWI"
     else:
         supplier_patterns = [
             r'fournisseur\s*[:#]?\s*([A-Za-z.\s]{3,})',
@@ -578,11 +580,9 @@ def extract_with_gemini(text):
     """Refine extraction with Gemini LLM for better precision (Safe mode)"""
     try:
         import google.generativeai as genai
-        from dotenv import dotenv_values
-        env = dotenv_values()
-        current_key = env.get('GOOGLE_API_KEY')
+        current_key = GOOGLE_API_KEY
         if not current_key or "AIza" not in current_key:
-            print("[GEMINI] Skipped: Invalid or missing API KEY in .env")
+            print("[GEMINI] Skipped: Invalid or missing API KEY in environment")
             return None
             
         genai.configure(api_key=current_key)
