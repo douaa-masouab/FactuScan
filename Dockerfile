@@ -30,7 +30,7 @@ COPY . .
 RUN mkdir -p uploads
 
 # Fast API / Flask port
-EXPOSE 5000
+EXPOSE 7860
 
 # Set environment variables
 ENV FLASK_APP=backend/app.py
