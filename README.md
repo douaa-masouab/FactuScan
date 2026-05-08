@@ -1,11 +1,3 @@
----
-title: FactuScan
-emoji: 📊
-colorFrom: blue
-colorTo: indigo
-sdk: docker
-pinned: false
----
 
 # FactuScan - Analyse Intelligente & Multi-Utilisateurs
 
@@ -55,7 +47,7 @@ pinned: false
 
 ### 🎙️ Assistant Vocal Bilingue
 - **Auto-Détection de Langue** : L'assistant détecte et parle désormais en **Français** ou en **Arabe** selon le contenu de la facture.
-- **Commandes Intuitives** : "Total", "Résumé", "Aide", "Lire".
+- **Commandes Intuitives** : "Total", "Résumé".
 
 ### 🚀 Performance
 - **Lazy Loading** : Démarrage du serveur quasi-instantané grâce au chargement différé des modèles lourds d'IA.
