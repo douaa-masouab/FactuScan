@@ -15,8 +15,8 @@
                 <div class="upload-area p-4 border border-dashed rounded text-center" id="upload-area">
                     <i class="bi bi-cloud-upload" style="font-size: 3rem; color: #6c757d;"></i>
                     <h4 class="mt-3">Télécharger une facture</h4>
-                    <p class="text-muted">Glissez et déposez une facture (PDF, JPG, PNG) ou cliquez pour sélectionner</p>
-                    <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png" style="display: none;">
+                    <p class="text-muted">Glissez et déposez une facture (PDF, JPG, PNG, WEBP, JFIF) ou cliquez pour sélectionner</p>
+                    <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png,.webp,.jfif" style="display: none;">
                     <button id="browse-btn" class="btn btn-primary mt-2">Parcourir</button>
                 </div>
                 
@@ -133,9 +133,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Handle file upload
     function handleFileUpload(file) {
         // Validate file type
-        const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-        if (!validTypes.includes(file.type)) {
-            alert('Veuillez sélectionner un fichier PDF ou une image (JPG, PNG).');
+        const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+        const extension = file.name.split('.').pop().toLowerCase();
+        const validExtensions = ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'jfif'];
+        
+        if (!validTypes.includes(file.type) && !validExtensions.includes(extension)) {
+            alert('Veuillez sélectionner un fichier PDF ou une image (JPG, PNG, WEBP, JFIF).');
             return;
         }
         
