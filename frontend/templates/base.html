@@ -28,20 +28,28 @@
 <body>
     <div class="wrap">
         <nav>
-            <a href="/" class="brand">
-                <div class="brand-icon">
-                    <i class="bi bi-layers-fill text-white"></i>
+            <a href="/" class="brand" style="display: flex; align-items: center; gap: 12px; text-decoration: none;">
+                <div class="brand-icon-grad" style="width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-qr-code-scan" style="color: #fff; font-size: 1.1rem;"></i>
                 </div>
-                <div>Factu<span>Scan</span></div>
+                <div style="font-weight: 800; font-size: 1.4rem; color: #0F3B5C; letter-spacing: -0.02em;">FactuScan</div>
             </a>
 
             <div class="nav-links">
-                <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">Accueil</a>
+                <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">
+                    <i class="bi bi-house-door" style="font-size: 1rem;"></i> Accueil
+                </a>
                 {% if current_user.is_authenticated %}
-                <a href="/dashboard" class="nav-link {% if request.path == '/dashboard' %}active{% endif %}">Mon Espace</a>
+                <a href="/dashboard" class="nav-link {% if request.path == '/dashboard' %}active{% endif %}">
+                    <i class="bi bi-grid-1x2" style="font-size: 0.95rem;"></i> Mon Espace
+                </a>
                 {% else %}
-                <a href="/about" class="nav-link">À propos</a>
-                <a href="/docs" class="nav-link">Documentation</a>
+                <a href="/about" class="nav-link">
+                    <i class="bi bi-info-circle" style="font-size: 0.95rem;"></i> À propos
+                </a>
+                <a href="/docs" class="nav-link">
+                    <i class="bi bi-book" style="font-size: 0.95rem;"></i> Documentation
+                </a>
                 {% endif %}
             </div>
 
@@ -74,7 +82,7 @@
         <footer>
             <div class="footer-content">
                 <div class="footer-brand">
-                    <h2>Factu<span>Scan</span></h2>
+                    <h2>FactuScan</h2>
                     <p>La solution intelligente pour l'extraction et l'analyse de factures au Maroc. Gain de temps et
                         précision garantie grâce à l'intelligence artificielle.</p>
                 </div>

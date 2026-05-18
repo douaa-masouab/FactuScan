@@ -6,9 +6,6 @@
 <div class="auth-container" style="display: flex; align-items: center; justify-content: center; min-height: 80vh; padding: 2rem;">
     <div class="card auth-card" style="width: 100%; max-width: 450px; padding: 3rem;">
         <div class="auth-header" style="text-align: center; margin-bottom: 2.5rem;">
-            <div class="brand-icon" style="margin: 0 auto 1.5rem;">
-                <i class="bi bi-person-plus text-white" style="font-size: 1.5rem;"></i>
-            </div>
             <h1 style="font-size: 1.8rem; font-weight: 800; margin-bottom: 0.5rem; background: var(--grad); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">Créer un compte</h1>
             <p style="color: var(--t2);">Rejoignez FactuScan dès aujourd'hui</p>
         </div>
@@ -19,7 +16,7 @@
                 <div style="position: relative;">
                     <i class="bi bi-person" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--t3);"></i>
                     <input type="text" id="username" name="username" required 
-                        style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: var(--r2); padding: 0.8rem 1rem 0.8rem 2.8rem; color: #fff; outline: none; transition: var(--tr);"
+                        style="width: 100%; background: var(--card2); border: 1px solid var(--border); border-radius: var(--r2); padding: 0.8rem 1rem 0.8rem 2.8rem; color: var(--t1); outline: none; transition: var(--tr);"
                         placeholder="votre_nom">
                 </div>
             </div>
@@ -29,7 +26,7 @@
                 <div style="position: relative;">
                     <i class="bi bi-shield-lock" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--t3);"></i>
                     <input type="password" id="password" name="password" required 
-                        style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: var(--r2); padding: 0.8rem 1rem 0.8rem 2.8rem; color: #fff; outline: none; transition: var(--tr);"
+                        style="width: 100%; background: var(--card2); border: 1px solid var(--border); border-radius: var(--r2); padding: 0.8rem 1rem 0.8rem 2.8rem; color: var(--t1); outline: none; transition: var(--tr);"
                         placeholder="••••••••">
                 </div>
             </div>
@@ -112,7 +109,7 @@ document.querySelectorAll('input').forEach(input => {
     input.addEventListener('focus', () => {
         input.parentElement.parentElement.querySelector('label').style.color = 'var(--acc)';
         input.style.borderColor = 'var(--acc)';
-        input.style.boxShadow = '0 0 15px rgba(99, 102, 241, 0.2)';
+        input.style.boxShadow = 'var(--glow)';
     });
     input.addEventListener('blur', () => {
         input.parentElement.parentElement.querySelector('label').style.color = 'var(--t2)';

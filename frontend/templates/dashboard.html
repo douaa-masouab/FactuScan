@@ -32,7 +32,7 @@
     .stat-card p {
         font-size: 2.5rem;
         font-weight: 800;
-        color: #fff;
+        color: var(--t1);
         margin: 0;
     }
 
@@ -50,8 +50,9 @@
     }
 
     th {
-        background: rgba(255, 255, 255, 0.03);
-        color: var(--t2);
+        background: var(--card2);
+        color: var(--acc);
+        font-weight: 700;
         text-align: left;
         padding: 1.25rem 1.5rem;
         font-size: .9rem;
@@ -177,7 +178,7 @@
                 <td>${d.invoice_date || '—'}</td>
                 <td style="color: var(--ok); font-weight: 700;">${d.total_amount ? d.total_amount.toFixed(2) + ' DH' : '—'}</td>
                 <td style="text-align: right;">
-                    <button class="btn-secondary" onclick="deleteHistoryItem(${d.id})" style="padding: 6px 12px; color: var(--err); border-color: rgba(239,68,68,0.2);">Supprimer</button>
+                    <button class="btn-danger" onclick="deleteHistoryItem(${d.id})" style="padding: 6px 12px;">Supprimer</button>
                 </td>
             </tr>
         `).join('');

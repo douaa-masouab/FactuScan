@@ -1,21 +1,21 @@
 :root {
-    --bg: #09090f;
-    --panel: #12121c;
-    --card: rgba(255, 255, 255, .04);
-    --card2: rgba(255, 255, 255, .07);
-    --border: rgba(255, 255, 255, .09);
-    --ba: rgba(99, 102, 241, .5);
-    --acc: #6366f1;
-    --acc2: #8b5cf6;
-    --acc3: #06b6d4;
-    --ok: #10b981;
-    --warn: #f59e0b;
-    --err: #ef4444;
-    --t1: #f1f5f9;
-    --t2: #94a3b8;
-    --t3: #475569;
-    --grad: linear-gradient(135deg, #6366f1, #8b5cf6);
-    --glow: 0 0 40px rgba(99, 102, 241, .18);
+    --bg: #F4F6F9;
+    --panel: #FFFFFF;
+    --card: #FFFFFF;
+    --card2: #F0F4F8;
+    --border: rgba(1, 28, 64, 0.12);
+    --ba: rgba(1, 28, 64, 0.4);
+    --acc: #011C40;
+    --acc2: #032B5C;
+    --acc3: #011C40;
+    --ok: #10B981;
+    --warn: #F59E0B;
+    --err: #EF4444;
+    --t1: #011C40;
+    --t2: rgba(1, 28, 64, 0.8);
+    --t3: rgba(1, 28, 64, 0.6);
+    --grad: #011C40;
+    --glow: 0 0 20px rgba(1, 28, 64, 0.15);
     --r1: 8px;
     --r2: 14px;
     --r3: 20px;
@@ -51,9 +51,7 @@ body::before {
     content: '';
     position: fixed;
     inset: 0;
-    background:
-        radial-gradient(ellipse 80% 50% at 0% 0%, rgba(99, 102, 241, .12), transparent 60%),
-        radial-gradient(ellipse 60% 50% at 100% 100%, rgba(139, 92, 246, .10), transparent 60%);
+    background: none;
     pointer-events: none;
     z-index: 0
 }
@@ -73,7 +71,7 @@ nav {
     justify-content: space-between;
     padding: 0 2rem;
     height: 72px;
-    background: rgba(18, 18, 28, .8);
+    background: rgba(255, 255, 255, 0.82);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border);
     position: sticky;
@@ -100,7 +98,7 @@ nav {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 8px 16px rgba(99, 102, 241, .3);
+    box-shadow: 0 8px 16px rgba(1, 28, 64, .3);
 }
 
 .brand span {
@@ -119,6 +117,28 @@ nav {
     font-size: 0.95rem;
     font-weight: 500;
     transition: var(--tr);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    position: relative;
+    padding: 0.5rem 0;
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--acc);
+    transition: var(--tr);
+    border-radius: 99px;
+}
+
+.nav-link:hover::after,
+.nav-link.active::after {
+    width: 100%;
 }
 
 .nav-link:hover,
@@ -142,13 +162,13 @@ nav {
     font-weight: 600;
     cursor: pointer;
     transition: var(--tr);
-    box-shadow: 0 4px 15px rgba(99, 102, 241, .4);
+    box-shadow: 0 4px 15px rgba(1, 28, 64, .4);
     text-decoration: none;
 }
 
 .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(99, 102, 241, .5);
+    box-shadow: 0 10px 25px rgba(1, 28, 64, 0.25);
     opacity: 0.9;
 }
 
@@ -182,15 +202,19 @@ nav {
     font-weight: 800;
     line-height: 1.1;
     margin-bottom: 1.5rem;
-    background: linear-gradient(135deg, #fff 0%, #94a3b8 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #011C40;
+    background: none;
+    -webkit-background-clip: initial;
+    -webkit-text-fill-color: initial;
 }
 
 .hero p {
     font-size: 1.25rem;
     color: var(--t2);
     margin-bottom: 2.5rem;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 /* FEATURES */
@@ -240,12 +264,36 @@ nav {
     border-radius: var(--r3);
     backdrop-filter: blur(12px);
     transition: var(--tr);
+    box-shadow: 0 4px 20px rgba(1, 28, 64, 0.03);
+}
+
+.btn-danger {
+    padding: 10px 24px;
+    border-radius: var(--r2);
+    background: transparent;
+    color: var(--err);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--tr);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn-danger:hover {
+    background: var(--err);
+    color: #fff;
+    border-color: var(--err);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
 }
 
 /* FOOTER */
 footer {
     padding: 4rem 2rem;
-    background: rgba(18, 18, 28, .5);
+    background: var(--panel);
     border-top: 1px solid var(--border);
     margin-top: auto;
 }
@@ -261,6 +309,26 @@ footer {
 .footer-brand h2 {
     font-size: 1.5rem;
     margin-bottom: 1rem;
+    color: var(--t1);
+    font-weight: 800;
+}
+
+.footer-brand h2 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: #0F3B5C;
+    font-weight: 800;
+}
+
+/* GRADIENT LOGO CLASSES */
+.brand-icon-grad {
+    background: #0F3B5C;
+    box-shadow: 0 4px 12px rgba(15, 59, 92, 0.15);
+}
+
+.brand-text-grad {
+    color: #0F3B5C;
+    font-weight: 800;
 }
 
 .footer-brand p {
@@ -405,7 +473,7 @@ footer {
     margin: 2rem auto;
     font-size: 2rem;
     color: #fff;
-    box-shadow: 0 0 20px rgba(99, 102, 241, .4);
+    box-shadow: 0 0 20px rgba(1, 28, 64, .4);
 }
 
 .voice-anim.recording {
@@ -415,17 +483,17 @@ footer {
 @keyframes voice-pulse {
     0% {
         transform: scale(1);
-        box-shadow: 0 0 20px rgba(99, 102, 241, .4);
+        box-shadow: 0 0 20px rgba(1, 28, 64, .4);
     }
 
     50% {
         transform: scale(1.1);
-        box-shadow: 0 0 40px rgba(99, 102, 241, .6);
+        box-shadow: 0 0 40px rgba(1, 28, 64, .6);
     }
 
     100% {
         transform: scale(1);
-        box-shadow: 0 0 20px rgba(99, 102, 241, .4);
+        box-shadow: 0 0 20px rgba(1, 28, 64, .4);
     }
 }
 
@@ -445,8 +513,18 @@ footer {
 
 .ai-txt {
     color: var(--t1);
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(1, 28, 64, 0.08);
     padding: 1rem;
     border-radius: 12px;
     font-size: 0.9rem;
+}
+
+/* FOCUS STATES FOR ALL FIELDS */
+input[type="text"], input[type="password"], input[type="email"], select, textarea {
+    transition: var(--tr);
+}
+input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus, select:focus, textarea:focus {
+    border-color: var(--acc) !important;
+    box-shadow: 0 0 0 3px rgba(1, 28, 64, 0.12) !important;
+    background: #FFFFFF !important;
 }
